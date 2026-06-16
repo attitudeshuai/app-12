@@ -22,4 +22,8 @@ public interface ToolBoxRepository extends JpaRepository<ToolBox, Long> {
                          Pageable pageable);
 
     List<ToolBox> findByManagerId(Long managerId);
+
+    java.util.Optional<ToolBox> findByCode(String code);
+
+    boolean existsByCode(String code);
 }

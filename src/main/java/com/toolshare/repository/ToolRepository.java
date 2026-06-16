@@ -34,4 +34,6 @@ public interface ToolRepository extends JpaRepository<Tool, Long> {
 
     @Query("SELECT t.category, COUNT(t) FROM Tool t GROUP BY t.category")
     List<Object[]> countByCategory();
+
+    List<Tool> findByBoxId(Long boxId);
 }

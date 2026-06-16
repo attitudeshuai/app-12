@@ -46,6 +46,12 @@ public class ToolBoxService {
 
     @Transactional
     public ToolBoxResponse createToolBox(CreateToolBoxRequest request, Long managerId) {
+        if (request.getCode() != null && !request.getCode().trim().isEmpty()) {
+            if (toolBoxRepository.existsByCode(request.getCode())) {
+                throw new BadRequestException("工具箱编码已存在：" + request.getCode());
+            }
+        }
+
         ToolBox toolBox = new ToolBox();
         toolBox.setName(request.getName());
         toolBox.setLocation(request.getLocation());
@@ -65,6 +71,12 @@ public class ToolBoxService {
 
         if (!toolBox.getManagerId().equals(currentUserId)) {
             throw new BadRequestException("无权修改此工具箱");
+        }
+
+        if (request.getCode() != null && !request.getCode().trim().isEmpty()) {
+            if (!request.getCode().equals(toolBox.getCode()) && toolBoxRepository.existsByCode(request.getCode())) {
+                throw new BadRequestException("工具箱编码已存在：" + request.getCode());
+            }
         }
 
         if (request.getName() != null) {
