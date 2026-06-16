@@ -29,8 +29,9 @@ public class OverdueRecordController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
+        Long currentUserId = SecurityUtil.getCurrentUserId();
         return ApiResponse.success(overdueRecordService.getAllOverdueRecords(
-                resolved, requesterId, page, size, sortBy, sortDir));
+                resolved, requesterId, page, size, sortBy, sortDir, currentUserId));
     }
 
     @GetMapping("/mine")
@@ -46,13 +47,15 @@ public class OverdueRecordController {
     @GetMapping("/{id}")
     @Operation(summary = "获取逾期记录详情")
     public ApiResponse<OverdueRecordResponse> getOverdueRecordById(@PathVariable Long id) {
-        return ApiResponse.success(overdueRecordService.getOverdueRecordById(id));
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        return ApiResponse.success(overdueRecordService.getOverdueRecordById(id, currentUserId));
     }
 
     @PatchMapping("/{id}/resolve")
     @Operation(summary = "标记逾期记录为已处理")
     public ApiResponse<OverdueRecordResponse> resolveOverdueRecord(@PathVariable Long id) {
-        return ApiResponse.success(overdueRecordService.resolveOverdueRecord(id));
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        return ApiResponse.success(overdueRecordService.resolveOverdueRecord(id, currentUserId));
     }
 
     @GetMapping("/stats/unresolved-count")

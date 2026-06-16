@@ -83,9 +83,13 @@ public class OverdueRecordService {
     }
 
     @Transactional
-    public OverdueRecordResponse resolveOverdueRecord(Long id) {
+    public OverdueRecordResponse resolveOverdueRecord(Long id, Long currentUserId) {
         OverdueRecord record = overdueRecordRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("逾期记录不存在"));
+
+        if (!record.getRequesterId().equals(currentUserId)) {
+            throw new BadRequestException("无权处理此逾期记录");
+        }
 
         if (record.isResolved()) {
             throw new BadRequestException("该逾期记录已处理");
@@ -105,17 +109,23 @@ public class OverdueRecordService {
     }
 
     public PageResponse<OverdueRecordResponse> getAllOverdueRecords(Boolean resolved, Long requesterId,
-                                                                    int page, int size, String sortBy, String sortDir) {
+                                                                    int page, int size, String sortBy, String sortDir,
+                                                                    Long currentUserId) {
+        if (requesterId != null && !requesterId.equals(currentUserId)) {
+            throw new BadRequestException("无权查看他人的逾期记录");
+        }
+        Long filteredRequesterId = currentUserId;
+
         Sort sort = sortDir.equalsIgnoreCase("desc") ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
         Pageable pageable = PageRequest.of(page, size, sort);
 
         Page<OverdueRecord> recordPage;
-        if (resolved != null && requesterId != null) {
-            recordPage = overdueRecordRepository.findByRequesterIdAndResolved(requesterId, resolved, pageable);
+        if (resolved != null && filteredRequesterId != null) {
+            recordPage = overdueRecordRepository.findByRequesterIdAndResolved(filteredRequesterId, resolved, pageable);
         } else if (resolved != null) {
             recordPage = overdueRecordRepository.findByResolved(resolved, pageable);
-        } else if (requesterId != null) {
-            recordPage = overdueRecordRepository.findByRequesterId(requesterId, pageable);
+        } else if (filteredRequesterId != null) {
+            recordPage = overdueRecordRepository.findByRequesterId(filteredRequesterId, pageable);
         } else {
             recordPage = overdueRecordRepository.findAll(pageable);
         }
@@ -124,9 +134,14 @@ public class OverdueRecordService {
         return PageResponse.of(responseList, recordPage.getTotalElements(), recordPage.getNumber(), recordPage.getSize());
     }
 
-    public OverdueRecordResponse getOverdueRecordById(Long id) {
+    public OverdueRecordResponse getOverdueRecordById(Long id, Long currentUserId) {
         OverdueRecord record = overdueRecordRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("逾期记录不存在"));
+
+        if (!record.getRequesterId().equals(currentUserId)) {
+            throw new BadRequestException("无权查看此逾期记录");
+        }
+
         return toResponse(record);
     }
 
