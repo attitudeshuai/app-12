@@ -18,4 +18,6 @@ public class OverviewStats {
     private Map<String, Long> toolsByStatus;
     private Map<String, Long> toolsByCategory;
     private Map<String, Long> borrowRequestsByStatus;
+    private long totalOverdueRecords;
+    private long unresolvedOverdueRecords;
 }

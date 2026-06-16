@@ -8,6 +8,7 @@ import com.toolshare.dto.borrowrequest.UpdateBorrowStatusRequest;
 import com.toolshare.entity.BorrowRequest;
 import com.toolshare.entity.BorrowRequestStatus;
 import com.toolshare.entity.NotificationType;
+import com.toolshare.entity.OverdueRecord;
 import com.toolshare.entity.Tool;
 import com.toolshare.entity.ToolLogAction;
 import com.toolshare.entity.ToolStatus;
@@ -15,6 +16,7 @@ import com.toolshare.entity.User;
 import com.toolshare.exception.BadRequestException;
 import com.toolshare.exception.ResourceNotFoundException;
 import com.toolshare.repository.BorrowRequestRepository;
+import com.toolshare.repository.OverdueRecordRepository;
 import com.toolshare.repository.ToolRepository;
 import com.toolshare.repository.UserRepository;
 import org.springframework.data.domain.Page;
@@ -25,6 +27,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,19 +46,22 @@ public class BorrowRequestService {
     private final ToolLogService toolLogService;
     private final NotificationService notificationService;
     private final ToolReviewService toolReviewService;
+    private final OverdueRecordRepository overdueRecordRepository;
 
     public BorrowRequestService(BorrowRequestRepository borrowRequestRepository,
                                 ToolRepository toolRepository,
                                 UserRepository userRepository,
                                 ToolLogService toolLogService,
                                 NotificationService notificationService,
-                                ToolReviewService toolReviewService) {
+                                ToolReviewService toolReviewService,
+                                OverdueRecordRepository overdueRecordRepository) {
         this.borrowRequestRepository = borrowRequestRepository;
         this.toolRepository = toolRepository;
         this.userRepository = userRepository;
         this.toolLogService = toolLogService;
         this.notificationService = notificationService;
         this.toolReviewService = toolReviewService;
+        this.overdueRecordRepository = overdueRecordRepository;
     }
 
     public PageResponse<BorrowRequestResponse> getAllBorrowRequests(BorrowRequestStatus status, Long requesterId,
@@ -224,6 +231,13 @@ public class BorrowRequestService {
                         "您借用的工具「" + tool.getName() + "」归还已确认，感谢使用！",
                         borrowRequest.getId()
                 );
+                overdueRecordRepository.findByBorrowRequestId(borrowRequest.getId()).ifPresent(record -> {
+                    if (!record.isResolved()) {
+                        record.setResolved(true);
+                        record.setResolvedAt(LocalDateTime.now());
+                        overdueRecordRepository.save(record);
+                    }
+                });
                 break;
 
             default:
@@ -271,6 +285,7 @@ public class BorrowRequestService {
         }
 
         List<BorrowRequestResponse> responses = new ArrayList<>();
+        LocalDate today = LocalDate.now();
         for (BorrowRequest borrowRequest : borrowRequests) {
             BorrowRequestResponse response = new BorrowRequestResponse();
             response.setId(borrowRequest.getId());
@@ -286,6 +301,8 @@ public class BorrowRequestService {
             response.setToolName(toolNameMap.get(borrowRequest.getToolId()));
             response.setRequesterName(requesterNameMap.get(borrowRequest.getRequesterId()));
             response.setHasReviewed(hasReviewedMap.getOrDefault(borrowRequest.getId(), false));
+
+            populateOverdueFields(response, borrowRequest, today);
 
             responses.add(response);
         }
@@ -314,6 +331,30 @@ public class BorrowRequestService {
 
         response.setHasReviewed(toolReviewService.hasReviewed(borrowRequest.getId()));
 
+        populateOverdueFields(response, borrowRequest, LocalDate.now());
+
         return response;
+    }
+
+    private void populateOverdueFields(BorrowRequestResponse response, BorrowRequest borrowRequest, LocalDate today) {
+        boolean isApproved = borrowRequest.getStatus() == BorrowRequestStatus.APPROVED;
+        boolean notReturned = borrowRequest.getActualReturnDate() == null;
+
+        if (isApproved && notReturned) {
+            if (borrowRequest.getExpectedReturnDate().isBefore(today)) {
+                response.setIsOverdue(true);
+                response.setOverdueDays((int) ChronoUnit.DAYS.between(borrowRequest.getExpectedReturnDate(), today));
+                response.setIsDueSoon(false);
+            } else {
+                response.setIsOverdue(false);
+                response.setOverdueDays(0);
+                long daysUntilDue = ChronoUnit.DAYS.between(today, borrowRequest.getExpectedReturnDate());
+                response.setIsDueSoon(daysUntilDue <= 3 && daysUntilDue >= 0);
+            }
+        } else {
+            response.setIsOverdue(false);
+            response.setOverdueDays(0);
+            response.setIsDueSoon(false);
+        }
     }
 }

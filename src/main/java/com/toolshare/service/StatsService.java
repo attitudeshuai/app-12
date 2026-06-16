@@ -6,6 +6,7 @@ import com.toolshare.entity.BorrowRequestStatus;
 import com.toolshare.entity.ToolLogAction;
 import com.toolshare.entity.ToolStatus;
 import com.toolshare.repository.BorrowRequestRepository;
+import com.toolshare.repository.OverdueRecordRepository;
 import com.toolshare.repository.ToolBoxRepository;
 import com.toolshare.repository.ToolLogRepository;
 import com.toolshare.repository.ToolRepository;
@@ -27,17 +28,20 @@ public class StatsService {
     private final ToolRepository toolRepository;
     private final BorrowRequestRepository borrowRequestRepository;
     private final ToolLogRepository toolLogRepository;
+    private final OverdueRecordRepository overdueRecordRepository;
 
     public StatsService(UserRepository userRepository,
                         ToolBoxRepository toolBoxRepository,
                         ToolRepository toolRepository,
                         BorrowRequestRepository borrowRequestRepository,
-                        ToolLogRepository toolLogRepository) {
+                        ToolLogRepository toolLogRepository,
+                        OverdueRecordRepository overdueRecordRepository) {
         this.userRepository = userRepository;
         this.toolBoxRepository = toolBoxRepository;
         this.toolRepository = toolRepository;
         this.borrowRequestRepository = borrowRequestRepository;
         this.toolLogRepository = toolLogRepository;
+        this.overdueRecordRepository = overdueRecordRepository;
     }
 
     public OverviewStats getOverviewStats() {
@@ -68,6 +72,9 @@ public class StatsService {
             borrowRequestsByStatus.put(status.name(), borrowRequestRepository.countByStatus(status));
         }
         stats.setBorrowRequestsByStatus(borrowRequestsByStatus);
+
+        stats.setTotalOverdueRecords(overdueRecordRepository.count());
+        stats.setUnresolvedOverdueRecords(overdueRecordRepository.countByResolved(false));
 
         return stats;
     }

@@ -3,18 +3,22 @@ package com.toolshare.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "borrow_requests")
-public class BorrowRequest {
+@Table(name = "overdue_records")
+public class OverdueRecord {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "borrow_request_id", nullable = false, unique = true)
+    private Long borrowRequestId;
 
     @Column(name = "tool_id", nullable = false)
     private Long toolId;
@@ -22,29 +26,26 @@ public class BorrowRequest {
     @Column(name = "requester_id", nullable = false)
     private Long requesterId;
 
-    @Column(name = "start_date", nullable = false)
-    private LocalDate startDate;
-
     @Column(name = "expected_return_date", nullable = false)
     private LocalDate expectedReturnDate;
 
-    @Column(name = "actual_return_date")
-    private LocalDate actualReturnDate;
+    @Column(name = "overdue_date", nullable = false)
+    private LocalDate overdueDate;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private BorrowRequestStatus status = BorrowRequestStatus.PENDING;
+    @Column(name = "overdue_days", nullable = false)
+    private Integer overdueDays;
 
-    @Column(columnDefinition = "TEXT")
-    private String remark;
+    @Column(name = "resolved", nullable = false)
+    private boolean resolved = false;
 
-    @Column(name = "overdue_notified", nullable = false)
-    private boolean overdueNotified = false;
-
-    @Column(name = "due_soon_notified", nullable = false)
-    private boolean dueSoonNotified = false;
+    @Column(name = "resolved_at")
+    private LocalDateTime resolvedAt;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 }

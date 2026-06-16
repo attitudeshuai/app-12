@@ -39,4 +39,22 @@ public interface BorrowRequestRepository extends JpaRepository<BorrowRequest, Lo
            "GROUP BY DATE(br.createdAt) ORDER BY DATE(br.createdAt)")
     List<Object[]> countByDateRange(@Param("startDate") LocalDateTime startDate,
                                     @Param("endDate") LocalDateTime endDate);
+
+    @Query("SELECT br FROM BorrowRequest br WHERE br.status = :status " +
+           "AND br.expectedReturnDate BETWEEN :fromDate AND :toDate " +
+           "AND br.dueSoonNotified = false")
+    Page<BorrowRequest> findDueSoonBorrows(@Param("status") BorrowRequestStatus status,
+                                           @Param("fromDate") LocalDate fromDate,
+                                           @Param("toDate") LocalDate toDate,
+                                           Pageable pageable);
+
+    @Query("SELECT br FROM BorrowRequest br WHERE br.status = :status " +
+           "AND br.expectedReturnDate < :today " +
+           "AND br.actualReturnDate IS NULL")
+    Page<BorrowRequest> findOverdueBorrows(@Param("status") BorrowRequestStatus status,
+                                           @Param("today") LocalDate today,
+                                           Pageable pageable);
+
+    long countByStatusAndExpectedReturnDateBeforeAndActualReturnDateIsNull(
+            BorrowRequestStatus status, LocalDate date);
 }
