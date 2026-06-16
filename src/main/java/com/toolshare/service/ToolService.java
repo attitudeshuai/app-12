@@ -78,6 +78,7 @@ public class ToolService {
         tool.setName(request.getName());
         tool.setCategory(request.getCategory());
         tool.setDescription(request.getDescription());
+        tool.setImage(request.getImage());
         tool.setPurchaseDate(request.getPurchaseDate());
         tool.setOwnerId(ownerId);
         tool.setStatus(ToolStatus.AVAILABLE);
@@ -109,6 +110,9 @@ public class ToolService {
         }
         if (request.getDescription() != null) {
             tool.setDescription(request.getDescription());
+        }
+        if (request.getImage() != null) {
+            tool.setImage(request.getImage());
         }
         if (request.getPurchaseDate() != null) {
             tool.setPurchaseDate(request.getPurchaseDate());
@@ -176,6 +180,7 @@ public class ToolService {
             response.setCategory(tool.getCategory());
             response.setStatus(tool.getStatus());
             response.setDescription(tool.getDescription());
+            response.setImage(tool.getImage());
             response.setPurchaseDate(tool.getPurchaseDate());
             response.setOwnerId(tool.getOwnerId());
             response.setCreatedAt(tool.getCreatedAt());
@@ -198,6 +203,7 @@ public class ToolService {
         response.setCategory(tool.getCategory());
         response.setStatus(tool.getStatus());
         response.setDescription(tool.getDescription());
+        response.setImage(tool.getImage());
         response.setPurchaseDate(tool.getPurchaseDate());
         response.setOwnerId(tool.getOwnerId());
         response.setCreatedAt(tool.getCreatedAt());

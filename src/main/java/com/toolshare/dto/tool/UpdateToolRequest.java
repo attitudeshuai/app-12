@@ -19,6 +19,9 @@ public class UpdateToolRequest {
     @Size(max = 2000, message = "描述不能超过2000个字符")
     private String description;
 
+    @Size(max = 500, message = "图片链接不能超过500个字符")
+    private String image;
+
     private LocalDate purchaseDate;
 
     private ToolStatus status;

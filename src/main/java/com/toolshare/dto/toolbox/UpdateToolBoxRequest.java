@@ -14,5 +14,8 @@ public class UpdateToolBoxRequest {
     @Size(max = 50, message = "取箱码不能超过50个字符")
     private String code;
 
+    @Size(max = 500, message = "图片链接不能超过500个字符")
+    private String image;
+
     private Boolean isActive;
 }

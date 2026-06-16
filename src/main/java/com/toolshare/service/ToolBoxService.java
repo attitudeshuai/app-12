@@ -50,6 +50,7 @@ public class ToolBoxService {
         toolBox.setName(request.getName());
         toolBox.setLocation(request.getLocation());
         toolBox.setCode(request.getCode());
+        toolBox.setImage(request.getImage());
         toolBox.setManagerId(managerId);
         toolBox.setIsActive(true);
 
@@ -74,6 +75,9 @@ public class ToolBoxService {
         }
         if (request.getCode() != null) {
             toolBox.setCode(request.getCode());
+        }
+        if (request.getImage() != null) {
+            toolBox.setImage(request.getImage());
         }
         if (request.getIsActive() != null) {
             toolBox.setIsActive(request.getIsActive());
@@ -102,6 +106,7 @@ public class ToolBoxService {
         response.setLocation(toolBox.getLocation());
         response.setManagerId(toolBox.getManagerId());
         response.setCode(toolBox.getCode());
+        response.setImage(toolBox.getImage());
         response.setIsActive(toolBox.getIsActive());
         response.setCreatedAt(toolBox.getCreatedAt());
 

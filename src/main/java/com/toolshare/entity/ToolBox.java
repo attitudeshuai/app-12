@@ -27,6 +27,9 @@ public class ToolBox {
     @Column(length = 50)
     private String code;
 
+    @Column(length = 500)
+    private String image;
+
     @Column(name = "is_active")
     private Boolean isActive = true;
 

@@ -16,6 +16,7 @@ public class ToolBoxResponse {
     private Long managerId;
     private String managerName;
     private String code;
+    private String image;
     private Boolean isActive;
     private LocalDateTime createdAt;
 }

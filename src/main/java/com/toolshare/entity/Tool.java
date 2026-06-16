@@ -32,6 +32,9 @@ public class Tool {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(length = 500)
+    private String image;
+
     @Column(name = "purchase_date")
     private LocalDate purchaseDate;
 

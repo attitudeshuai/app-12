@@ -19,6 +19,7 @@ public class ToolResponse {
     private String category;
     private ToolStatus status;
     private String description;
+    private String image;
     private LocalDate purchaseDate;
     private Long ownerId;
     private String ownerName;
