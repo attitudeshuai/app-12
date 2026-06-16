@@ -23,4 +23,6 @@ public class ToolResponse {
     private Long ownerId;
     private String ownerName;
     private LocalDateTime createdAt;
+    private Double averageRating;
+    private Long reviewCount;
 }

@@ -23,4 +23,5 @@ public class BorrowRequestResponse {
     private BorrowRequestStatus status;
     private String remark;
     private LocalDateTime createdAt;
+    private Boolean hasReviewed;
 }

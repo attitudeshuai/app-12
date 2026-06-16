@@ -34,17 +34,20 @@ public class BorrowRequestService {
     private final UserRepository userRepository;
     private final ToolLogService toolLogService;
     private final NotificationService notificationService;
+    private final ToolReviewService toolReviewService;
 
     public BorrowRequestService(BorrowRequestRepository borrowRequestRepository,
                                 ToolRepository toolRepository,
                                 UserRepository userRepository,
                                 ToolLogService toolLogService,
-                                NotificationService notificationService) {
+                                NotificationService notificationService,
+                                ToolReviewService toolReviewService) {
         this.borrowRequestRepository = borrowRequestRepository;
         this.toolRepository = toolRepository;
         this.userRepository = userRepository;
         this.toolLogService = toolLogService;
         this.notificationService = notificationService;
+        this.toolReviewService = toolReviewService;
     }
 
     public PageResponse<BorrowRequestResponse> getAllBorrowRequests(BorrowRequestStatus status, Long requesterId,
@@ -261,6 +264,8 @@ public class BorrowRequestService {
         userRepository.findById(borrowRequest.getRequesterId()).ifPresent(user ->
                 response.setRequesterName(user.getUsername())
         );
+
+        response.setHasReviewed(toolReviewService.hasReviewed(borrowRequest.getId()));
 
         return response;
     }

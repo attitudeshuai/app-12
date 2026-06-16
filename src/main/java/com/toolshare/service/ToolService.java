@@ -26,11 +26,14 @@ public class ToolService {
     private final ToolRepository toolRepository;
     private final ToolBoxRepository toolBoxRepository;
     private final UserRepository userRepository;
+    private final ToolReviewService toolReviewService;
 
-    public ToolService(ToolRepository toolRepository, ToolBoxRepository toolBoxRepository, UserRepository userRepository) {
+    public ToolService(ToolRepository toolRepository, ToolBoxRepository toolBoxRepository, UserRepository userRepository,
+                       ToolReviewService toolReviewService) {
         this.toolRepository = toolRepository;
         this.toolBoxRepository = toolBoxRepository;
         this.userRepository = userRepository;
+        this.toolReviewService = toolReviewService;
     }
 
     public PageResponse<ToolResponse> getAllTools(String keyword, String category, ToolStatus status, Long boxId,
@@ -155,6 +158,9 @@ public class ToolService {
         userRepository.findById(tool.getOwnerId()).ifPresent(user ->
                 response.setOwnerName(user.getUsername())
         );
+
+        response.setAverageRating(toolReviewService.getAverageRatingByToolId(tool.getId()));
+        response.setReviewCount(toolReviewService.getReviewCountByToolId(tool.getId()));
 
         return response;
     }
