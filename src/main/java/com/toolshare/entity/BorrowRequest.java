@@ -38,6 +38,9 @@ public class BorrowRequest {
     @Column(columnDefinition = "TEXT")
     private String remark;
 
+    @Column(name = "overdue_notified", nullable = false)
+    private boolean overdueNotified = false;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
