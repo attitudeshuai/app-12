@@ -7,9 +7,11 @@ import com.toolshare.dto.borrowrequest.UpdateBorrowRequestRequest;
 import com.toolshare.dto.borrowrequest.UpdateBorrowStatusRequest;
 import com.toolshare.entity.BorrowRequest;
 import com.toolshare.entity.BorrowRequestStatus;
+import com.toolshare.entity.NotificationType;
 import com.toolshare.entity.Tool;
 import com.toolshare.entity.ToolLogAction;
 import com.toolshare.entity.ToolStatus;
+import com.toolshare.entity.User;
 import com.toolshare.exception.BadRequestException;
 import com.toolshare.exception.ResourceNotFoundException;
 import com.toolshare.repository.BorrowRequestRepository;
@@ -31,15 +33,18 @@ public class BorrowRequestService {
     private final ToolRepository toolRepository;
     private final UserRepository userRepository;
     private final ToolLogService toolLogService;
+    private final NotificationService notificationService;
 
     public BorrowRequestService(BorrowRequestRepository borrowRequestRepository,
                                 ToolRepository toolRepository,
                                 UserRepository userRepository,
-                                ToolLogService toolLogService) {
+                                ToolLogService toolLogService,
+                                NotificationService notificationService) {
         this.borrowRequestRepository = borrowRequestRepository;
         this.toolRepository = toolRepository;
         this.userRepository = userRepository;
         this.toolLogService = toolLogService;
+        this.notificationService = notificationService;
     }
 
     public PageResponse<BorrowRequestResponse> getAllBorrowRequests(BorrowRequestStatus status, Long requesterId,
@@ -89,6 +94,17 @@ public class BorrowRequestService {
         borrowRequest.setStatus(BorrowRequestStatus.PENDING);
 
         BorrowRequest savedRequest = borrowRequestRepository.save(borrowRequest);
+
+        User requester = userRepository.findById(requesterId).orElse(null);
+        String requesterName = requester != null ? requester.getUsername() : "未知用户";
+        notificationService.createNotification(
+                tool.getOwnerId(),
+                NotificationType.NEW_BORROW_REQUEST,
+                "新的借用申请",
+                requesterName + " 申请借用您的工具「" + tool.getName() + "」，请及时处理。",
+                savedRequest.getId()
+        );
+
         return toResponse(savedRequest);
     }
 
@@ -155,6 +171,13 @@ public class BorrowRequestService {
                 toolRepository.save(tool);
                 toolLogService.createLogInternal(tool.getId(), borrowRequest.getRequesterId(),
                         ToolLogAction.BORROW, "借用申请已批准");
+                notificationService.createNotification(
+                        borrowRequest.getRequesterId(),
+                        NotificationType.BORROW_APPROVED,
+                        "借用申请已批准",
+                        "您申请借用的工具「" + tool.getName() + "」已被批准，请及时取用。",
+                        borrowRequest.getId()
+                );
                 break;
 
             case REJECTED:
@@ -164,6 +187,13 @@ public class BorrowRequestService {
                 if (borrowRequest.getStatus() != BorrowRequestStatus.PENDING) {
                     throw new BadRequestException("只能拒绝待审核的申请");
                 }
+                notificationService.createNotification(
+                        borrowRequest.getRequesterId(),
+                        NotificationType.BORROW_REJECTED,
+                        "借用申请被拒绝",
+                        "您申请借用的工具「" + tool.getName() + "」被拒绝了。",
+                        borrowRequest.getId()
+                );
                 break;
 
             case RETURNED:
@@ -178,6 +208,13 @@ public class BorrowRequestService {
                 borrowRequest.setActualReturnDate(LocalDate.now());
                 toolLogService.createLogInternal(tool.getId(), borrowRequest.getRequesterId(),
                         ToolLogAction.RETURN, "工具已归还");
+                notificationService.createNotification(
+                        borrowRequest.getRequesterId(),
+                        NotificationType.BORROW_RETURNED,
+                        "工具归还已确认",
+                        "您借用的工具「" + tool.getName() + "」归还已确认，感谢使用！",
+                        borrowRequest.getId()
+                );
                 break;
 
             default:
