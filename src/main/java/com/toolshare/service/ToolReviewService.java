@@ -99,21 +99,33 @@ public class ToolReviewService {
     }
 
     public Long getReviewCountByToolId(Long toolId) {
-        return toolReviewRepository.countByToolId(toolId);
+        Long count = toolReviewRepository.countByToolId(toolId);
+        return count != null ? count : 0L;
     }
 
     public Map<Long, Double> getAverageRatingMapByToolIds(List<Long> toolIds) {
         if (toolIds == null || toolIds.isEmpty()) {
             return Collections.emptyMap();
         }
-        return toolReviewRepository.findAverageRatingMapByToolIds(toolIds);
+        Map<Long, Double> dbResult = toolReviewRepository.findAverageRatingMapByToolIds(toolIds);
+        Map<Long, Double> result = new HashMap<>();
+        for (Long id : toolIds) {
+            result.put(id, dbResult.get(id));
+        }
+        return result;
     }
 
     public Map<Long, Long> getReviewCountMapByToolIds(List<Long> toolIds) {
         if (toolIds == null || toolIds.isEmpty()) {
             return Collections.emptyMap();
         }
-        return toolReviewRepository.findReviewCountMapByToolIds(toolIds);
+        Map<Long, Long> dbResult = toolReviewRepository.findReviewCountMapByToolIds(toolIds);
+        Map<Long, Long> result = new HashMap<>();
+        for (Long id : toolIds) {
+            Long count = dbResult.get(id);
+            result.put(id, count != null ? count : 0L);
+        }
+        return result;
     }
 
     public Map<Long, Boolean> getHasReviewedMapByBorrowRequestIds(List<Long> borrowRequestIds) {
