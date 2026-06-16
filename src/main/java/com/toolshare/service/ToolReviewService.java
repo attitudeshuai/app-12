@@ -21,6 +21,13 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 @Service
 public class ToolReviewService {
 
@@ -93,6 +100,33 @@ public class ToolReviewService {
 
     public Long getReviewCountByToolId(Long toolId) {
         return toolReviewRepository.countByToolId(toolId);
+    }
+
+    public Map<Long, Double> getAverageRatingMapByToolIds(List<Long> toolIds) {
+        if (toolIds == null || toolIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return toolReviewRepository.findAverageRatingMapByToolIds(toolIds);
+    }
+
+    public Map<Long, Long> getReviewCountMapByToolIds(List<Long> toolIds) {
+        if (toolIds == null || toolIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return toolReviewRepository.findReviewCountMapByToolIds(toolIds);
+    }
+
+    public Map<Long, Boolean> getHasReviewedMapByBorrowRequestIds(List<Long> borrowRequestIds) {
+        if (borrowRequestIds == null || borrowRequestIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<Long> reviewedIds = toolReviewRepository.findReviewedBorrowRequestIds(borrowRequestIds);
+        Set<Long> reviewedSet = new HashSet<>(reviewedIds);
+        Map<Long, Boolean> result = new HashMap<>();
+        for (Long id : borrowRequestIds) {
+            result.put(id, reviewedSet.contains(id));
+        }
+        return result;
     }
 
     private ToolReviewResponse toResponse(ToolReview review) {

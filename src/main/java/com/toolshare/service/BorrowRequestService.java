@@ -25,6 +25,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class BorrowRequestService {
@@ -57,9 +64,8 @@ public class BorrowRequestService {
         Pageable pageable = PageRequest.of(page, size, sort);
 
         Page<BorrowRequest> requestPage = borrowRequestRepository.search(status, requesterId, toolId, startDate, endDate, pageable);
-        Page<BorrowRequestResponse> responsePage = requestPage.map(this::toResponse);
-
-        return PageResponse.from(responsePage);
+        List<BorrowRequestResponse> responseList = toResponseList(requestPage.getContent());
+        return PageResponse.of(responseList, requestPage.getTotalElements(), requestPage.getNumber(), requestPage.getSize());
     }
 
     public BorrowRequestResponse getBorrowRequestById(Long id) {
@@ -71,8 +77,8 @@ public class BorrowRequestService {
     public PageResponse<BorrowRequestResponse> getMyBorrowRequests(Long requesterId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<BorrowRequest> requestPage = borrowRequestRepository.findByRequesterId(requesterId, pageable);
-        Page<BorrowRequestResponse> responsePage = requestPage.map(this::toResponse);
-        return PageResponse.from(responsePage);
+        List<BorrowRequestResponse> responseList = toResponseList(requestPage.getContent());
+        return PageResponse.of(responseList, requestPage.getTotalElements(), requestPage.getNumber(), requestPage.getSize());
     }
 
     @Transactional
@@ -243,6 +249,47 @@ public class BorrowRequestService {
         }
 
         borrowRequestRepository.delete(borrowRequest);
+    }
+
+    private List<BorrowRequestResponse> toResponseList(List<BorrowRequest> borrowRequests) {
+        if (borrowRequests == null || borrowRequests.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        Set<Long> borrowRequestIds = borrowRequests.stream().map(BorrowRequest::getId).collect(Collectors.toSet());
+        Set<Long> toolIds = borrowRequests.stream().map(BorrowRequest::getToolId).collect(Collectors.toSet());
+        Set<Long> requesterIds = borrowRequests.stream().map(BorrowRequest::getRequesterId).collect(Collectors.toSet());
+
+        Map<Long, Boolean> hasReviewedMap = toolReviewService.getHasReviewedMapByBorrowRequestIds(new ArrayList<>(borrowRequestIds));
+        Map<Long, String> toolNameMap = new HashMap<>();
+        if (!toolIds.isEmpty()) {
+            toolRepository.findAllById(toolIds).forEach(t -> toolNameMap.put(t.getId(), t.getName()));
+        }
+        Map<Long, String> requesterNameMap = new HashMap<>();
+        if (!requesterIds.isEmpty()) {
+            userRepository.findAllById(requesterIds).forEach(u -> requesterNameMap.put(u.getId(), u.getUsername()));
+        }
+
+        List<BorrowRequestResponse> responses = new ArrayList<>();
+        for (BorrowRequest borrowRequest : borrowRequests) {
+            BorrowRequestResponse response = new BorrowRequestResponse();
+            response.setId(borrowRequest.getId());
+            response.setToolId(borrowRequest.getToolId());
+            response.setRequesterId(borrowRequest.getRequesterId());
+            response.setStartDate(borrowRequest.getStartDate());
+            response.setExpectedReturnDate(borrowRequest.getExpectedReturnDate());
+            response.setActualReturnDate(borrowRequest.getActualReturnDate());
+            response.setStatus(borrowRequest.getStatus());
+            response.setRemark(borrowRequest.getRemark());
+            response.setCreatedAt(borrowRequest.getCreatedAt());
+
+            response.setToolName(toolNameMap.get(borrowRequest.getToolId()));
+            response.setRequesterName(requesterNameMap.get(borrowRequest.getRequesterId()));
+            response.setHasReviewed(hasReviewedMap.getOrDefault(borrowRequest.getId(), false));
+
+            responses.add(response);
+        }
+        return responses;
     }
 
     private BorrowRequestResponse toResponse(BorrowRequest borrowRequest) {

@@ -8,6 +8,7 @@ import com.toolshare.dto.tool.UpdateToolStatusRequest;
 import com.toolshare.entity.Tool;
 import com.toolshare.entity.ToolBox;
 import com.toolshare.entity.ToolStatus;
+import com.toolshare.entity.User;
 import com.toolshare.exception.BadRequestException;
 import com.toolshare.exception.ResourceNotFoundException;
 import com.toolshare.repository.ToolBoxRepository;
@@ -19,6 +20,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class ToolService {
@@ -42,9 +51,8 @@ public class ToolService {
         Pageable pageable = PageRequest.of(page, size, sort);
 
         Page<Tool> toolPage = toolRepository.search(keyword, category, status, boxId, pageable);
-        Page<ToolResponse> responsePage = toolPage.map(this::toResponse);
-
-        return PageResponse.from(responsePage);
+        List<ToolResponse> responseList = toResponseList(toolPage.getContent());
+        return PageResponse.of(responseList, toolPage.getTotalElements(), toolPage.getNumber(), toolPage.getSize());
     }
 
     public ToolResponse getToolById(Long id) {
@@ -56,8 +64,8 @@ public class ToolService {
     public PageResponse<ToolResponse> getMyTools(Long ownerId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<Tool> toolPage = toolRepository.findByOwnerId(ownerId, pageable);
-        Page<ToolResponse> responsePage = toolPage.map(this::toResponse);
-        return PageResponse.from(responsePage);
+        List<ToolResponse> responseList = toResponseList(toolPage.getContent());
+        return PageResponse.of(responseList, toolPage.getTotalElements(), toolPage.getNumber(), toolPage.getSize());
     }
 
     @Transactional
@@ -137,6 +145,49 @@ public class ToolService {
         }
 
         toolRepository.delete(tool);
+    }
+
+    private List<ToolResponse> toResponseList(List<Tool> tools) {
+        if (tools == null || tools.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        Set<Long> toolIds = tools.stream().map(Tool::getId).collect(Collectors.toSet());
+        Set<Long> boxIds = tools.stream().map(Tool::getBoxId).collect(Collectors.toSet());
+        Set<Long> ownerIds = tools.stream().map(Tool::getOwnerId).collect(Collectors.toSet());
+
+        Map<Long, Double> averageRatingMap = toolReviewService.getAverageRatingMapByToolIds(new ArrayList<>(toolIds));
+        Map<Long, Long> reviewCountMap = toolReviewService.getReviewCountMapByToolIds(new ArrayList<>(toolIds));
+        Map<Long, String> boxNameMap = new HashMap<>();
+        if (!boxIds.isEmpty()) {
+            toolBoxRepository.findAllById(boxIds).forEach(tb -> boxNameMap.put(tb.getId(), tb.getName()));
+        }
+        Map<Long, String> ownerNameMap = new HashMap<>();
+        if (!ownerIds.isEmpty()) {
+            userRepository.findAllById(ownerIds).forEach(u -> ownerNameMap.put(u.getId(), u.getUsername()));
+        }
+
+        List<ToolResponse> responses = new ArrayList<>();
+        for (Tool tool : tools) {
+            ToolResponse response = new ToolResponse();
+            response.setId(tool.getId());
+            response.setBoxId(tool.getBoxId());
+            response.setName(tool.getName());
+            response.setCategory(tool.getCategory());
+            response.setStatus(tool.getStatus());
+            response.setDescription(tool.getDescription());
+            response.setPurchaseDate(tool.getPurchaseDate());
+            response.setOwnerId(tool.getOwnerId());
+            response.setCreatedAt(tool.getCreatedAt());
+
+            response.setBoxName(boxNameMap.get(tool.getBoxId()));
+            response.setOwnerName(ownerNameMap.get(tool.getOwnerId()));
+            response.setAverageRating(averageRatingMap.get(tool.getId()));
+            response.setReviewCount(reviewCountMap.get(tool.getId()));
+
+            responses.add(response);
+        }
+        return responses;
     }
 
     private ToolResponse toResponse(Tool tool) {

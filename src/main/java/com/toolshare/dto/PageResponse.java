@@ -30,4 +30,17 @@ public class PageResponse<T> {
                 page.isLast()
         );
     }
+
+    public static <T> PageResponse<T> of(List<T> content, long totalElements, int pageNumber, int pageSize) {
+        int totalPages = pageSize > 0 ? (int) Math.ceil((double) totalElements / pageSize) : 0;
+        return new PageResponse<>(
+                content,
+                pageNumber,
+                pageSize,
+                totalElements,
+                totalPages,
+                pageNumber == 0,
+                pageNumber >= totalPages - 1
+        );
+    }
 }
