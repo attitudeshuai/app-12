@@ -4,11 +4,14 @@ import com.toolshare.dto.PageResponse;
 import com.toolshare.dto.toolbox.CreateToolBoxRequest;
 import com.toolshare.dto.toolbox.ToolBoxResponse;
 import com.toolshare.dto.toolbox.UpdateToolBoxRequest;
+import com.toolshare.entity.Tool;
 import com.toolshare.entity.ToolBox;
+import com.toolshare.entity.ToolStatus;
 import com.toolshare.entity.User;
 import com.toolshare.exception.BadRequestException;
 import com.toolshare.exception.ResourceNotFoundException;
 import com.toolshare.repository.ToolBoxRepository;
+import com.toolshare.repository.ToolRepository;
 import com.toolshare.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -17,14 +20,18 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 public class ToolBoxService {
 
     private final ToolBoxRepository toolBoxRepository;
+    private final ToolRepository toolRepository;
     private final UserRepository userRepository;
 
-    public ToolBoxService(ToolBoxRepository toolBoxRepository, UserRepository userRepository) {
+    public ToolBoxService(ToolBoxRepository toolBoxRepository, ToolRepository toolRepository, UserRepository userRepository) {
         this.toolBoxRepository = toolBoxRepository;
+        this.toolRepository = toolRepository;
         this.userRepository = userRepository;
     }
 
@@ -92,7 +99,28 @@ public class ToolBoxService {
             toolBox.setImage(request.getImage());
         }
         if (request.getIsActive() != null) {
+            boolean wasActive = Boolean.TRUE.equals(toolBox.getIsActive());
+            boolean willBeActive = Boolean.TRUE.equals(request.getIsActive());
+
             toolBox.setIsActive(request.getIsActive());
+
+            if (wasActive && !willBeActive) {
+                List<Tool> tools = toolRepository.findByBoxId(id);
+                for (Tool tool : tools) {
+                    if (tool.getStatus() == ToolStatus.AVAILABLE) {
+                        tool.setStatus(ToolStatus.MAINTENANCE);
+                        toolRepository.save(tool);
+                    }
+                }
+            } else if (!wasActive && willBeActive) {
+                List<Tool> tools = toolRepository.findByBoxId(id);
+                for (Tool tool : tools) {
+                    if (tool.getStatus() == ToolStatus.MAINTENANCE) {
+                        tool.setStatus(ToolStatus.AVAILABLE);
+                        toolRepository.save(tool);
+                    }
+                }
+            }
         }
 
         ToolBox savedToolBox = toolBoxRepository.save(toolBox);

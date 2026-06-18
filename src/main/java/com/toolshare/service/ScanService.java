@@ -233,10 +233,7 @@ public class ScanService {
         ToolBox toolBox = toolBoxRepository.findByCode(request.getToolBoxCode())
                 .orElseThrow(() -> new ResourceNotFoundException("工具箱不存在，编码：" + request.getToolBoxCode()));
 
-        if (!Boolean.TRUE.equals(toolBox.getIsActive())) {
-            throw new BadRequestException("工具箱已停用");
-        }
-
+        boolean toolBoxActive = Boolean.TRUE.equals(toolBox.getIsActive());
         boolean isManager = toolBox.getManagerId().equals(currentUserId);
 
         List<Long> toolIds = request.getToolIds();
@@ -308,7 +305,7 @@ public class ScanService {
             borrowRequest.setActualReturnDate(LocalDate.now());
             borrowRequestRepository.save(borrowRequest);
 
-            tool.setStatus(ToolStatus.AVAILABLE);
+            tool.setStatus(toolBoxActive ? ToolStatus.AVAILABLE : ToolStatus.MAINTENANCE);
             toolRepository.save(tool);
 
             toolLogService.createLogInternal(toolId, currentUserId, ToolLogAction.RETURN, "扫码快速归还");

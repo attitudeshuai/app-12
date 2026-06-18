@@ -10,6 +10,7 @@ import com.toolshare.entity.BorrowRequestStatus;
 import com.toolshare.entity.NotificationType;
 import com.toolshare.entity.OverdueRecord;
 import com.toolshare.entity.Tool;
+import com.toolshare.entity.ToolBox;
 import com.toolshare.entity.ToolLogAction;
 import com.toolshare.entity.ToolStatus;
 import com.toolshare.entity.User;
@@ -17,6 +18,7 @@ import com.toolshare.exception.BadRequestException;
 import com.toolshare.exception.ResourceNotFoundException;
 import com.toolshare.repository.BorrowRequestRepository;
 import com.toolshare.repository.OverdueRecordRepository;
+import com.toolshare.repository.ToolBoxRepository;
 import com.toolshare.repository.ToolRepository;
 import com.toolshare.repository.UserRepository;
 import org.springframework.data.domain.Page;
@@ -42,6 +44,7 @@ public class BorrowRequestService {
 
     private final BorrowRequestRepository borrowRequestRepository;
     private final ToolRepository toolRepository;
+    private final ToolBoxRepository toolBoxRepository;
     private final UserRepository userRepository;
     private final ToolLogService toolLogService;
     private final NotificationService notificationService;
@@ -50,6 +53,7 @@ public class BorrowRequestService {
 
     public BorrowRequestService(BorrowRequestRepository borrowRequestRepository,
                                 ToolRepository toolRepository,
+                                ToolBoxRepository toolBoxRepository,
                                 UserRepository userRepository,
                                 ToolLogService toolLogService,
                                 NotificationService notificationService,
@@ -57,6 +61,7 @@ public class BorrowRequestService {
                                 OverdueRecordRepository overdueRecordRepository) {
         this.borrowRequestRepository = borrowRequestRepository;
         this.toolRepository = toolRepository;
+        this.toolBoxRepository = toolBoxRepository;
         this.userRepository = userRepository;
         this.toolLogService = toolLogService;
         this.notificationService = notificationService;
@@ -95,6 +100,13 @@ public class BorrowRequestService {
 
         if (tool.getStatus() != ToolStatus.AVAILABLE) {
             throw new BadRequestException("该工具当前不可借用");
+        }
+
+        ToolBox toolBox = toolBoxRepository.findById(tool.getBoxId())
+                .orElseThrow(() -> new ResourceNotFoundException("工具箱不存在"));
+
+        if (!Boolean.TRUE.equals(toolBox.getIsActive())) {
+            throw new BadRequestException("该工具所属工具箱已停用，不可借用");
         }
 
         if (request.getStartDate().isAfter(request.getExpectedReturnDate())) {
@@ -219,7 +231,11 @@ public class BorrowRequestService {
                 if (borrowRequest.getStatus() != BorrowRequestStatus.APPROVED) {
                     throw new BadRequestException("只能归还已批准的申请");
                 }
-                tool.setStatus(ToolStatus.AVAILABLE);
+                boolean toolBoxActive = toolBoxRepository.findById(tool.getBoxId())
+                        .map(ToolBox::getIsActive)
+                        .map(active -> Boolean.TRUE.equals(active))
+                        .orElse(false);
+                tool.setStatus(toolBoxActive ? ToolStatus.AVAILABLE : ToolStatus.MAINTENANCE);
                 toolRepository.save(tool);
                 borrowRequest.setActualReturnDate(LocalDate.now());
                 toolLogService.createLogInternal(tool.getId(), borrowRequest.getRequesterId(),
