@@ -23,4 +23,5 @@ public class ScanToolItem {
     private Long currentBorrowerId;
     private String currentBorrowerName;
     private LocalDate expectedReturnDate;
+    private Integer maxBorrowDays;
 }

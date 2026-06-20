@@ -104,6 +104,7 @@ public class ScanService {
             item.setPurchaseDate(tool.getPurchaseDate());
             item.setOwnerId(tool.getOwnerId());
             item.setOwnerName(userNameMap.get(tool.getOwnerId()));
+            item.setMaxBorrowDays(tool.getMaxBorrowDays());
 
             BorrowRequest activeBorrow = activeBorrowMap.get(tool.getId());
             if (activeBorrow != null) {
@@ -188,6 +189,20 @@ public class ScanService {
                 failCount++;
                 results.add(item);
                 continue;
+            }
+
+            if (tool.getMaxBorrowDays() != null && tool.getMaxBorrowDays() > 0) {
+                long borrowDays = java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), request.getExpectedReturnDate()) + 1;
+                if (borrowDays > tool.getMaxBorrowDays()) {
+                    item.setSuccess(false);
+                    item.setMessage(String.format(
+                            "该工具单次借用最长允许 %d 天，当前选择的借用时长为 %d 天，请缩短借用时间",
+                            tool.getMaxBorrowDays(), borrowDays
+                    ));
+                    failCount++;
+                    results.add(item);
+                    continue;
+                }
             }
 
             BorrowRequest borrowRequest = new BorrowRequest();

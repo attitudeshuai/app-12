@@ -27,4 +27,6 @@ public class CreateToolRequest {
     private String image;
 
     private LocalDate purchaseDate;
+
+    private Integer maxBorrowDays;
 }

@@ -94,6 +94,7 @@ public class ToolService {
         tool.setPurchaseDate(request.getPurchaseDate());
         tool.setOwnerId(ownerId);
         tool.setStatus(ToolStatus.AVAILABLE);
+        tool.setMaxBorrowDays(request.getMaxBorrowDays());
 
         Tool savedTool = toolRepository.save(tool);
         return toResponse(savedTool);
@@ -134,6 +135,9 @@ public class ToolService {
                 throw new BadRequestException("只有管理员可以禁用工具");
             }
             tool.setStatus(request.getStatus());
+        }
+        if (request.getMaxBorrowDays() != null) {
+            tool.setMaxBorrowDays(request.getMaxBorrowDays());
         }
 
         Tool savedTool = toolRepository.save(tool);
@@ -269,6 +273,7 @@ public class ToolService {
             response.setPurchaseDate(tool.getPurchaseDate());
             response.setOwnerId(tool.getOwnerId());
             response.setCreatedAt(tool.getCreatedAt());
+            response.setMaxBorrowDays(tool.getMaxBorrowDays());
 
             response.setBoxName(boxNameMap.get(tool.getBoxId()));
             response.setOwnerName(ownerNameMap.get(tool.getOwnerId()));
@@ -299,6 +304,7 @@ public class ToolService {
         response.setPurchaseDate(tool.getPurchaseDate());
         response.setOwnerId(tool.getOwnerId());
         response.setCreatedAt(tool.getCreatedAt());
+        response.setMaxBorrowDays(tool.getMaxBorrowDays());
 
         toolBoxRepository.findById(tool.getBoxId()).ifPresent(toolBox ->
                 response.setBoxName(toolBox.getName())

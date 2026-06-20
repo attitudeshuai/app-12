@@ -30,4 +30,5 @@ public class ToolResponse {
     private Long favoriteCount;
     private Long borrowCount;
     private Long hotRankScore;
+    private Integer maxBorrowDays;
 }

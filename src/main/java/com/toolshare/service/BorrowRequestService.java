@@ -117,6 +117,16 @@ public class BorrowRequestService {
             throw new BadRequestException("开始日期不能晚于预计归还日期");
         }
 
+        if (tool.getMaxBorrowDays() != null && tool.getMaxBorrowDays() > 0) {
+            long borrowDays = ChronoUnit.DAYS.between(request.getStartDate(), request.getExpectedReturnDate()) + 1;
+            if (borrowDays > tool.getMaxBorrowDays()) {
+                throw new BadRequestException(String.format(
+                        "该工具单次借用最长允许 %d 天，当前选择的借用时长为 %d 天，请缩短借用时间",
+                        tool.getMaxBorrowDays(), borrowDays
+                ));
+            }
+        }
+
         checkBookingConflict(request.getToolId(), request.getStartDate(), request.getExpectedReturnDate(), null);
 
         BorrowRequest borrowRequest = new BorrowRequest();
@@ -173,6 +183,18 @@ public class BorrowRequestService {
 
         if (borrowRequest.getStartDate().isAfter(borrowRequest.getExpectedReturnDate())) {
             throw new BadRequestException("开始日期不能晚于预计归还日期");
+        }
+
+        Tool tool = toolRepository.findById(borrowRequest.getToolId())
+                .orElseThrow(() -> new ResourceNotFoundException("工具不存在"));
+        if (tool.getMaxBorrowDays() != null && tool.getMaxBorrowDays() > 0) {
+            long borrowDays = ChronoUnit.DAYS.between(borrowRequest.getStartDate(), borrowRequest.getExpectedReturnDate()) + 1;
+            if (borrowDays > tool.getMaxBorrowDays()) {
+                throw new BadRequestException(String.format(
+                        "该工具单次借用最长允许 %d 天，当前选择的借用时长为 %d 天，请缩短借用时间",
+                        tool.getMaxBorrowDays(), borrowDays
+                ));
+            }
         }
 
         if (dateChanged) {

@@ -45,6 +45,9 @@ public class Tool {
     @Column(name = "owner_id", nullable = false)
     private Long ownerId;
 
+    @Column(name = "max_borrow_days")
+    private Integer maxBorrowDays;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

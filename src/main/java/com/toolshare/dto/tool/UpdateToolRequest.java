@@ -25,4 +25,6 @@ public class UpdateToolRequest {
     private LocalDate purchaseDate;
 
     private ToolStatus status;
+
+    private Integer maxBorrowDays;
 }
