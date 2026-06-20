@@ -7,6 +7,7 @@ import com.toolshare.dto.toollog.UpdateToolLogRequest;
 import com.toolshare.entity.Tool;
 import com.toolshare.entity.ToolLog;
 import com.toolshare.entity.ToolLogAction;
+import com.toolshare.entity.User;
 import com.toolshare.exception.BadRequestException;
 import com.toolshare.exception.ResourceNotFoundException;
 import com.toolshare.repository.ToolLogRepository;
@@ -19,7 +20,13 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Service
 public class ToolLogService {
@@ -117,6 +124,65 @@ public class ToolLogService {
         }
 
         toolLogRepository.delete(toolLog);
+    }
+
+    public byte[] exportToolLogsToCsv(Long toolId, Long userId, ToolLogAction action,
+                                       LocalDateTime startTime, LocalDateTime endTime) {
+        List<ToolLog> logs = toolLogRepository.searchForExport(toolId, userId, action, startTime, endTime);
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(baos, StandardCharsets.UTF_8))) {
+            writer.print('\uFEFF');
+
+            writer.println("日志ID,工具ID,工具名称,用户ID,用户名,操作类型,描述,创建时间");
+
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            for (ToolLog log : logs) {
+                String toolName = toolRepository.findById(log.getToolId())
+                        .map(Tool::getName)
+                        .orElse("");
+                String userName = userRepository.findById(log.getUserId())
+                        .map(User::getUsername)
+                        .orElse("");
+
+                writer.printf("%d,%d,%s,%d,%s,%s,%s,%s%n",
+                        log.getId(),
+                        log.getToolId(),
+                        escapeCsv(toolName),
+                        log.getUserId(),
+                        escapeCsv(userName),
+                        escapeCsv(getActionDisplayName(log.getAction())),
+                        escapeCsv(log.getDescription() != null ? log.getDescription() : ""),
+                        log.getCreatedAt() != null ? log.getCreatedAt().format(formatter) : "");
+            }
+
+            writer.flush();
+        }
+
+        return baos.toByteArray();
+    }
+
+    private String escapeCsv(String value) {
+        if (value == null) {
+            return "";
+        }
+        if (value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
+    }
+
+    private String getActionDisplayName(ToolLogAction action) {
+        if (action == null) {
+            return "";
+        }
+        return switch (action) {
+            case BORROW -> "借用";
+            case RETURN -> "归还";
+            case REPORT -> "报修";
+            case REPAIR -> "维修";
+            case MAINTENANCE -> "保养";
+        };
     }
 
     private ToolLogResponse toResponse(ToolLog toolLog) {

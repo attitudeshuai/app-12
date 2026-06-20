@@ -19,7 +19,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.toolshare.entity.ToolLogAction;
+
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Service
 public class AdminService {
@@ -29,17 +32,20 @@ public class AdminService {
     private final BorrowRequestService borrowRequestService;
     private final ToolService toolService;
     private final ToolBoxService toolBoxService;
+    private final ToolLogService toolLogService;
 
     public AdminService(UserRepository userRepository,
                        AuthService authService,
                        BorrowRequestService borrowRequestService,
                        ToolService toolService,
-                       ToolBoxService toolBoxService) {
+                       ToolBoxService toolBoxService,
+                       ToolLogService toolLogService) {
         this.userRepository = userRepository;
         this.authService = authService;
         this.borrowRequestService = borrowRequestService;
         this.toolService = toolService;
         this.toolBoxService = toolBoxService;
+        this.toolLogService = toolLogService;
     }
 
     public PageResponse<UserResponse> getAllUsers(String keyword, Role role, Boolean isEnabled,
@@ -102,5 +108,10 @@ public class AdminService {
                                                              int page, int size, String sortBy, String sortDir) {
         return borrowRequestService.getAllBorrowRequests(status, requesterId, toolId,
                 startDate, endDate, page, size, sortBy, sortDir);
+    }
+
+    public byte[] exportToolLogs(Long toolId, Long userId, ToolLogAction action,
+                                  LocalDateTime startTime, LocalDateTime endTime) {
+        return toolLogService.exportToolLogsToCsv(toolId, userId, action, startTime, endTime);
     }
 }

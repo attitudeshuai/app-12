@@ -33,4 +33,17 @@ public interface ToolLogRepository extends JpaRepository<ToolLog, Long> {
 
     @Query("SELECT tl.action, COUNT(tl) FROM ToolLog tl GROUP BY tl.action")
     List<Object[]> countByAction();
+
+    @Query("SELECT tl FROM ToolLog tl WHERE " +
+           "(:toolId IS NULL OR tl.toolId = :toolId) " +
+           "AND (:userId IS NULL OR tl.userId = :userId) " +
+           "AND (:action IS NULL OR tl.action = :action) " +
+           "AND (:startTime IS NULL OR tl.createdAt >= :startTime) " +
+           "AND (:endTime IS NULL OR tl.createdAt <= :endTime) " +
+           "ORDER BY tl.createdAt DESC")
+    List<ToolLog> searchForExport(@Param("toolId") Long toolId,
+                                  @Param("userId") Long userId,
+                                  @Param("action") ToolLogAction action,
+                                  @Param("startTime") LocalDateTime startTime,
+                                  @Param("endTime") LocalDateTime endTime);
 }

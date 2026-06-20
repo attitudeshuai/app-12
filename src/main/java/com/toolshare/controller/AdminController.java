@@ -10,15 +10,22 @@ import com.toolshare.dto.tool.ToolResponse;
 import com.toolshare.dto.toolbox.ToolBoxResponse;
 import com.toolshare.entity.BorrowRequestStatus;
 import com.toolshare.entity.Role;
+import com.toolshare.entity.ToolLogAction;
 import com.toolshare.entity.ToolStatus;
 import com.toolshare.service.AdminService;
 import com.toolshare.util.SecurityUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -130,5 +137,28 @@ public class AdminController {
             @RequestParam(defaultValue = "desc") String sortDir) {
         return ApiResponse.success(adminService.getAllBorrowRequests(status, requesterId, toolId,
                 startDate, endDate, page, size, sortBy, sortDir));
+    }
+
+    @GetMapping("/tool-logs/export")
+    @Operation(summary = "导出使用日志为CSV文件")
+    public ResponseEntity<byte[]> exportToolLogs(
+            @RequestParam(required = false) Long toolId,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) ToolLogAction action,
+            @RequestParam(required = false) LocalDateTime startTime,
+            @RequestParam(required = false) LocalDateTime endTime) {
+        byte[] csvData = adminService.exportToolLogs(toolId, userId, action, startTime, endTime);
+
+        String fileName = "tool_logs_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".csv";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType("text/csv; charset=UTF-8"));
+        headers.setContentDisposition(ContentDisposition.attachment()
+                .filename(fileName, java.nio.charset.StandardCharsets.UTF_8)
+                .build());
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(csvData);
     }
 }
