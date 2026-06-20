@@ -1,6 +1,7 @@
 package com.toolshare.controller;
 
 import com.toolshare.dto.ApiResponse;
+import com.toolshare.dto.stats.HotToolRank;
 import com.toolshare.dto.stats.OverviewStats;
 import com.toolshare.dto.stats.TrendStats;
 import com.toolshare.service.StatsService;
@@ -9,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/stats")
@@ -22,9 +24,22 @@ public class StatsController {
     }
 
     @GetMapping("/overview")
-    @Operation(summary = "总览统计")
+    @Operation(summary = "总览统计（含热门工具排行）")
     public ApiResponse<OverviewStats> getOverviewStats() {
         return ApiResponse.success(statsService.getOverviewStats());
+    }
+
+    @GetMapping("/hot-tools")
+    @Operation(summary = "热门工具排行（按借用次数和收藏次数综合排名）")
+    public ApiResponse<List<HotToolRank>> getHotTools(
+            @RequestParam(defaultValue = "10") int limit) {
+        if (limit <= 0) {
+            limit = 10;
+        }
+        if (limit > 100) {
+            limit = 100;
+        }
+        return ApiResponse.success(statsService.getHotTools(limit));
     }
 
     @GetMapping("/trend")

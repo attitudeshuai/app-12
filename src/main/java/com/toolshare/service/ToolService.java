@@ -43,16 +43,18 @@ public class ToolService {
     private final ToolReviewService toolReviewService;
     private final ToolFavoriteRepository toolFavoriteRepository;
     private final ToolLogService toolLogService;
+    private final StatsService statsService;
 
     public ToolService(ToolRepository toolRepository, ToolBoxRepository toolBoxRepository, UserRepository userRepository,
                        ToolReviewService toolReviewService, ToolFavoriteRepository toolFavoriteRepository,
-                       ToolLogService toolLogService) {
+                       ToolLogService toolLogService, StatsService statsService) {
         this.toolRepository = toolRepository;
         this.toolBoxRepository = toolBoxRepository;
         this.userRepository = userRepository;
         this.toolReviewService = toolReviewService;
         this.toolFavoriteRepository = toolFavoriteRepository;
         this.toolLogService = toolLogService;
+        this.statsService = statsService;
     }
 
     public PageResponse<ToolResponse> getAllTools(String keyword, String category, ToolStatus status, Long boxId,
@@ -244,10 +246,15 @@ public class ToolService {
 
         Map<Long, Long> favoriteCountMap = new HashMap<>();
         if (!toolIds.isEmpty()) {
-            for (Long toolId : toolIds) {
-                favoriteCountMap.put(toolId, toolFavoriteRepository.countByToolId(toolId));
-            }
+            List<Object[]> favCounts = toolFavoriteRepository.countByToolIdsGrouped(new ArrayList<>(toolIds));
+            favoriteCountMap = favCounts.stream()
+                    .collect(Collectors.toMap(
+                            arr -> ((Number) arr[0]).longValue(),
+                            arr -> ((Number) arr[1]).longValue()
+                    ));
         }
+
+        Map<Long, Long> borrowCountMap = statsService.getBorrowCountMap(new ArrayList<>(toolIds));
 
         List<ToolResponse> responses = new ArrayList<>();
         for (Tool tool : tools) {
@@ -268,7 +275,12 @@ public class ToolService {
             response.setAverageRating(averageRatingMap.get(tool.getId()));
             response.setReviewCount(reviewCountMap.get(tool.getId()));
             response.setIsFavorited(currentUserId != null && favoritedToolIds.contains(tool.getId()));
-            response.setFavoriteCount(favoriteCountMap.get(tool.getId()));
+
+            Long favoriteCount = favoriteCountMap.getOrDefault(tool.getId(), 0L);
+            Long borrowCount = borrowCountMap.getOrDefault(tool.getId(), 0L);
+            response.setFavoriteCount(favoriteCount);
+            response.setBorrowCount(borrowCount);
+            response.setHotRankScore(borrowCount * 2 + favoriteCount);
 
             responses.add(response);
         }
@@ -305,7 +317,12 @@ public class ToolService {
         } else {
             response.setIsFavorited(false);
         }
-        response.setFavoriteCount(toolFavoriteRepository.countByToolId(tool.getId()));
+        Long favoriteCount = toolFavoriteRepository.countByToolId(tool.getId());
+        Long borrowCount = statsService.getBorrowCountMap(java.util.Collections.singletonList(tool.getId()))
+                .getOrDefault(tool.getId(), 0L);
+        response.setFavoriteCount(favoriteCount);
+        response.setBorrowCount(borrowCount);
+        response.setHotRankScore(borrowCount * 2 + favoriteCount);
 
         return response;
     }

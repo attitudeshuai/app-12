@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -20,4 +21,5 @@ public class OverviewStats {
     private Map<String, Long> borrowRequestsByStatus;
     private long totalOverdueRecords;
     private long unresolvedOverdueRecords;
+    private List<HotToolRank> hotTools;
 }

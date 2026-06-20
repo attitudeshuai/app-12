@@ -28,4 +28,6 @@ public class ToolResponse {
     private Long reviewCount;
     private Boolean isFavorited;
     private Long favoriteCount;
+    private Long borrowCount;
+    private Long hotRankScore;
 }

@@ -1,13 +1,16 @@
 package com.toolshare.service;
 
+import com.toolshare.dto.stats.HotToolRank;
 import com.toolshare.dto.stats.OverviewStats;
 import com.toolshare.dto.stats.TrendStats;
 import com.toolshare.entity.BorrowRequestStatus;
+import com.toolshare.entity.Tool;
 import com.toolshare.entity.ToolLogAction;
 import com.toolshare.entity.ToolStatus;
 import com.toolshare.repository.BorrowRequestRepository;
 import com.toolshare.repository.OverdueRecordRepository;
 import com.toolshare.repository.ToolBoxRepository;
+import com.toolshare.repository.ToolFavoriteRepository;
 import com.toolshare.repository.ToolLogRepository;
 import com.toolshare.repository.ToolRepository;
 import com.toolshare.repository.UserRepository;
@@ -15,13 +18,21 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class StatsService {
+
+    private static final int DEFAULT_HOT_TOOLS_LIMIT = 10;
+    private static final long BORROW_WEIGHT = 2;
+    private static final long FAVORITE_WEIGHT = 1;
 
     private final UserRepository userRepository;
     private final ToolBoxRepository toolBoxRepository;
@@ -29,19 +40,22 @@ public class StatsService {
     private final BorrowRequestRepository borrowRequestRepository;
     private final ToolLogRepository toolLogRepository;
     private final OverdueRecordRepository overdueRecordRepository;
+    private final ToolFavoriteRepository toolFavoriteRepository;
 
     public StatsService(UserRepository userRepository,
                         ToolBoxRepository toolBoxRepository,
                         ToolRepository toolRepository,
                         BorrowRequestRepository borrowRequestRepository,
                         ToolLogRepository toolLogRepository,
-                        OverdueRecordRepository overdueRecordRepository) {
+                        OverdueRecordRepository overdueRecordRepository,
+                        ToolFavoriteRepository toolFavoriteRepository) {
         this.userRepository = userRepository;
         this.toolBoxRepository = toolBoxRepository;
         this.toolRepository = toolRepository;
         this.borrowRequestRepository = borrowRequestRepository;
         this.toolLogRepository = toolLogRepository;
         this.overdueRecordRepository = overdueRecordRepository;
+        this.toolFavoriteRepository = toolFavoriteRepository;
     }
 
     public OverviewStats getOverviewStats() {
@@ -76,7 +90,82 @@ public class StatsService {
         stats.setTotalOverdueRecords(overdueRecordRepository.count());
         stats.setUnresolvedOverdueRecords(overdueRecordRepository.countByResolved(false));
 
+        stats.setHotTools(getHotTools(DEFAULT_HOT_TOOLS_LIMIT));
+
         return stats;
+    }
+
+    public List<HotToolRank> getHotTools(int limit) {
+        List<Object[]> borrowCounts = borrowRequestRepository.countByToolIdGrouped();
+        List<Object[]> favoriteCounts = toolFavoriteRepository.countByToolIdGrouped();
+
+        Map<Long, Long> borrowCountMap = borrowCounts.stream()
+                .collect(Collectors.toMap(
+                        arr -> ((Number) arr[0]).longValue(),
+                        arr -> ((Number) arr[1]).longValue()
+                ));
+        Map<Long, Long> favoriteCountMap = favoriteCounts.stream()
+                .collect(Collectors.toMap(
+                        arr -> ((Number) arr[0]).longValue(),
+                        arr -> ((Number) arr[1]).longValue()
+                ));
+
+        Set<Long> toolIds = new HashSet<>();
+        toolIds.addAll(borrowCountMap.keySet());
+        toolIds.addAll(favoriteCountMap.keySet());
+
+        if (toolIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<Tool> tools = toolRepository.findAllById(toolIds);
+        Map<Long, Tool> toolMap = tools.stream()
+                .collect(Collectors.toMap(Tool::getId, t -> t));
+
+        List<HotToolRank> ranks = new ArrayList<>();
+        for (Long toolId : toolIds) {
+            Tool tool = toolMap.get(toolId);
+            if (tool == null) {
+                continue;
+            }
+            long borrowCount = borrowCountMap.getOrDefault(toolId, 0L);
+            long favoriteCount = favoriteCountMap.getOrDefault(toolId, 0L);
+            long compositeScore = borrowCount * BORROW_WEIGHT + favoriteCount * FAVORITE_WEIGHT;
+
+            HotToolRank rank = new HotToolRank();
+            rank.setToolId(toolId);
+            rank.setToolName(tool.getName());
+            rank.setCategory(tool.getCategory());
+            rank.setImage(tool.getImage());
+            rank.setBorrowCount(borrowCount);
+            rank.setFavoriteCount(favoriteCount);
+            rank.setCompositeScore(compositeScore);
+            ranks.add(rank);
+        }
+
+        ranks.sort(Comparator.comparingLong(HotToolRank::getCompositeScore).reversed());
+
+        if (ranks.size() > limit) {
+            ranks = ranks.subList(0, limit);
+        }
+
+        for (int i = 0; i < ranks.size(); i++) {
+            ranks.get(i).setRank(i + 1);
+        }
+
+        return ranks;
+    }
+
+    public Map<Long, Long> getBorrowCountMap(List<Long> toolIds) {
+        if (toolIds == null || toolIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        List<Object[]> counts = borrowRequestRepository.countByToolIdsGrouped(toolIds);
+        return counts.stream()
+                .collect(Collectors.toMap(
+                        arr -> ((Number) arr[0]).longValue(),
+                        arr -> ((Number) arr[1]).longValue()
+                ));
     }
 
     public TrendStats getTrendStats(LocalDate startDate, LocalDate endDate) {

@@ -83,4 +83,13 @@ public interface BorrowRequestRepository extends JpaRepository<BorrowRequest, Lo
                                                @Param("startDate") LocalDate startDate,
                                                @Param("endDate") LocalDate endDate,
                                                @Param("excludeId") Long excludeId);
+
+    long countByToolId(Long toolId);
+
+    @Query("SELECT br.toolId, COUNT(br) FROM BorrowRequest br GROUP BY br.toolId")
+    List<Object[]> countByToolIdGrouped();
+
+    @Query("SELECT br.toolId, COUNT(br) FROM BorrowRequest br " +
+           "WHERE br.toolId IN :toolIds GROUP BY br.toolId")
+    List<Object[]> countByToolIdsGrouped(@Param("toolIds") List<Long> toolIds);
 }

@@ -26,4 +26,10 @@ public interface ToolFavoriteRepository extends JpaRepository<ToolFavorite, Long
 
     @Query("SELECT tf.toolId FROM ToolFavorite tf WHERE tf.userId = :userId AND tf.toolId IN :toolIds")
     List<Long> findFavoritedToolIdsByUserIdAndToolIds(@Param("userId") Long userId, @Param("toolIds") List<Long> toolIds);
+
+    @Query("SELECT tf.toolId, COUNT(tf) FROM ToolFavorite tf GROUP BY tf.toolId")
+    List<Object[]> countByToolIdGrouped();
+
+    @Query("SELECT tf.toolId, COUNT(tf) FROM ToolFavorite tf WHERE tf.toolId IN :toolIds GROUP BY tf.toolId")
+    List<Object[]> countByToolIdsGrouped(@Param("toolIds") List<Long> toolIds);
 }
