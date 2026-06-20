@@ -64,6 +64,15 @@ public interface BorrowRequestRepository extends JpaRepository<BorrowRequest, Lo
     @Query("SELECT br FROM BorrowRequest br WHERE br.toolId IN :toolIds AND br.status = :status AND br.actualReturnDate IS NULL")
     List<BorrowRequest> findActiveBorrowsByToolIds(@Param("toolIds") List<Long> toolIds, @Param("status") BorrowRequestStatus status);
 
+    @Query("SELECT br FROM BorrowRequest br WHERE br.status = :status " +
+           "AND br.expectedReturnDate < :followUpDate " +
+           "AND br.actualReturnDate IS NULL " +
+           "AND br.overdueNotified = true " +
+           "AND br.overdueFollowUpNotified = false")
+    Page<BorrowRequest> findOverdueFollowUpBorrows(@Param("status") BorrowRequestStatus status,
+                                                    @Param("followUpDate") LocalDate followUpDate,
+                                                    Pageable pageable);
+
     @Query("SELECT br FROM BorrowRequest br WHERE br.toolId = :toolId " +
            "AND br.status IN (:statuses) " +
            "AND br.startDate < :endDate " +

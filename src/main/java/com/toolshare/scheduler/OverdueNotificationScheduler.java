@@ -27,6 +27,7 @@ import java.util.Optional;
 public class OverdueNotificationScheduler {
 
     private static final int DUE_SOON_DAYS = 3;
+    private static final int OVERDUE_FOLLOW_UP_DAYS = 3;
 
     private final BorrowRequestRepository borrowRequestRepository;
     private final OverdueRecordRepository overdueRecordRepository;
@@ -49,6 +50,7 @@ public class OverdueNotificationScheduler {
         LocalDate today = LocalDate.now();
         checkDueSoonBorrows(today);
         checkOverdueBorrows(today);
+        checkOverdueFollowUp(today);
         resolveReturnedOverdueRecords();
     }
 
@@ -145,6 +147,53 @@ public class OverdueNotificationScheduler {
                 overduePage = borrowRequestRepository.findOverdueBorrows(
                         BorrowRequestStatus.APPROVED, today,
                         PageRequest.of(overduePage.getNumber() + 1, 100));
+            } else {
+                break;
+            }
+        }
+    }
+
+    private void checkOverdueFollowUp(LocalDate today) {
+        LocalDate followUpDate = today.minusDays(OVERDUE_FOLLOW_UP_DAYS);
+        Pageable pageable = PageRequest.of(0, 100);
+
+        Page<BorrowRequest> followUpPage = borrowRequestRepository.findOverdueFollowUpBorrows(
+                BorrowRequestStatus.APPROVED, followUpDate, pageable);
+
+        while (!followUpPage.isEmpty()) {
+            List<BorrowRequest> toUpdate = new ArrayList<>();
+            for (BorrowRequest borrowRequest : followUpPage.getContent()) {
+                Tool tool = toolRepository.findById(borrowRequest.getToolId()).orElse(null);
+                String toolName = tool != null ? tool.getName() : "未知工具";
+                int overdueDays = (int) ChronoUnit.DAYS.between(borrowRequest.getExpectedReturnDate(), today);
+
+                notificationService.createNotification(
+                        borrowRequest.getRequesterId(),
+                        NotificationType.BORROW_OVERDUE_REMINDER,
+                        "工具逾期催还提醒",
+                        "您借用的工具「" + toolName + "」已逾期 " + overdueDays + " 天仍未归还，请立即归还！",
+                        borrowRequest.getId()
+                );
+                if (tool != null) {
+                    notificationService.createNotification(
+                            tool.getOwnerId(),
+                            NotificationType.BORROW_OVERDUE_REMINDER,
+                            "工具逾期催还提醒",
+                            "工具「" + toolName + "」已逾期 " + overdueDays + " 天仍未归还，建议联系借用者催还。",
+                            borrowRequest.getId()
+                    );
+                }
+                borrowRequest.setOverdueFollowUpNotified(true);
+                toUpdate.add(borrowRequest);
+            }
+            if (!toUpdate.isEmpty()) {
+                borrowRequestRepository.saveAll(toUpdate);
+            }
+
+            if (followUpPage.hasNext()) {
+                followUpPage = borrowRequestRepository.findOverdueFollowUpBorrows(
+                        BorrowRequestStatus.APPROVED, followUpDate,
+                        PageRequest.of(followUpPage.getNumber() + 1, 100));
             } else {
                 break;
             }

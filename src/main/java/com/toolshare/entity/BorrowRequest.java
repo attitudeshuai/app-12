@@ -44,6 +44,9 @@ public class BorrowRequest {
     @Column(name = "due_soon_notified", nullable = false)
     private boolean dueSoonNotified = false;
 
+    @Column(name = "overdue_follow_up_notified", nullable = false)
+    private boolean overdueFollowUpNotified = false;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
