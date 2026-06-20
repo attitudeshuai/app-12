@@ -127,7 +127,8 @@ public class BorrowRequestService {
             }
         }
 
-        checkBookingConflict(request.getToolId(), request.getStartDate(), request.getExpectedReturnDate(), null);
+        checkBookingConflict(request.getToolId(), request.getStartDate(), request.getExpectedReturnDate(), null,
+                Arrays.asList(BorrowRequestStatus.PENDING, BorrowRequestStatus.APPROVED));
 
         BorrowRequest borrowRequest = new BorrowRequest();
         borrowRequest.setToolId(request.getToolId());
@@ -199,7 +200,8 @@ public class BorrowRequestService {
 
         if (dateChanged) {
             checkBookingConflict(borrowRequest.getToolId(), borrowRequest.getStartDate(),
-                    borrowRequest.getExpectedReturnDate(), borrowRequest.getId());
+                    borrowRequest.getExpectedReturnDate(), borrowRequest.getId(),
+                    Arrays.asList(BorrowRequestStatus.PENDING, BorrowRequestStatus.APPROVED));
         }
 
         BorrowRequest savedRequest = borrowRequestRepository.save(borrowRequest);
@@ -234,6 +236,9 @@ public class BorrowRequestService {
                 if (tool.getStatus() != ToolStatus.AVAILABLE) {
                     throw new BadRequestException("工具当前不可借用");
                 }
+                checkBookingConflict(borrowRequest.getToolId(), borrowRequest.getStartDate(),
+                        borrowRequest.getExpectedReturnDate(), borrowRequest.getId(),
+                        Arrays.asList(BorrowRequestStatus.APPROVED));
                 tool.setStatus(ToolStatus.BORROWED);
                 toolRepository.save(tool);
                 toolLogService.createLogInternal(tool.getId(), borrowRequest.getRequesterId(),
@@ -419,14 +424,10 @@ public class BorrowRequestService {
         }
     }
 
-    private void checkBookingConflict(Long toolId, LocalDate startDate, LocalDate endDate, Long excludeId) {
-        List<BorrowRequestStatus> activeStatuses = Arrays.asList(
-                BorrowRequestStatus.PENDING,
-                BorrowRequestStatus.APPROVED
-        );
-
+    public void checkBookingConflict(Long toolId, LocalDate startDate, LocalDate endDate, Long excludeId,
+                                      List<BorrowRequestStatus> statuses) {
         List<BorrowRequest> conflicts = borrowRequestRepository.findConflictingBorrows(
-                toolId, activeStatuses, startDate, endDate, excludeId);
+                toolId, statuses, startDate, endDate, excludeId);
 
         if (!conflicts.isEmpty()) {
             BorrowRequest firstConflict = conflicts.get(0);

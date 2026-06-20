@@ -43,6 +43,7 @@ public class ScanService {
     private final ToolLogService toolLogService;
     private final NotificationService notificationService;
     private final OverdueRecordRepository overdueRecordRepository;
+    private final BorrowRequestService borrowRequestService;
 
     public ScanService(ToolBoxRepository toolBoxRepository,
                        ToolRepository toolRepository,
@@ -50,7 +51,8 @@ public class ScanService {
                        BorrowRequestRepository borrowRequestRepository,
                        ToolLogService toolLogService,
                        NotificationService notificationService,
-                       OverdueRecordRepository overdueRecordRepository) {
+                       OverdueRecordRepository overdueRecordRepository,
+                       BorrowRequestService borrowRequestService) {
         this.toolBoxRepository = toolBoxRepository;
         this.toolRepository = toolRepository;
         this.userRepository = userRepository;
@@ -58,6 +60,7 @@ public class ScanService {
         this.toolLogService = toolLogService;
         this.notificationService = notificationService;
         this.overdueRecordRepository = overdueRecordRepository;
+        this.borrowRequestService = borrowRequestService;
     }
 
     public ScanToolBoxResponse getToolBoxByCode(String code) {
@@ -203,6 +206,18 @@ public class ScanService {
                     results.add(item);
                     continue;
                 }
+            }
+
+            try {
+                borrowRequestService.checkBookingConflict(toolId, LocalDate.now(),
+                        request.getExpectedReturnDate(), null,
+                        java.util.Arrays.asList(BorrowRequestStatus.APPROVED));
+            } catch (BadRequestException e) {
+                item.setSuccess(false);
+                item.setMessage(e.getMessage());
+                failCount++;
+                results.add(item);
+                continue;
             }
 
             BorrowRequest borrowRequest = new BorrowRequest();

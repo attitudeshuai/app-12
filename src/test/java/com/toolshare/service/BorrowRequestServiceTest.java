@@ -497,6 +497,7 @@ class BorrowRequestServiceTest {
         updateRequest.setExpectedReturnDate(newEnd);
 
         when(borrowRequestRepository.findById(1000L)).thenReturn(Optional.of(existingRequest));
+        when(toolRepository.findById(10L)).thenReturn(Optional.of(tool));
         when(borrowRequestRepository.findConflictingBorrows(
                 eq(10L), anyList(), eq(newStart), eq(newEnd), eq(1000L)))
                 .thenReturn(java.util.Arrays.asList(otherRequest));
@@ -528,6 +529,7 @@ class BorrowRequestServiceTest {
         updateRequest.setRemark("新备注");
 
         when(borrowRequestRepository.findById(1000L)).thenReturn(Optional.of(existingRequest));
+        when(toolRepository.findById(10L)).thenReturn(Optional.of(tool));
         when(borrowRequestRepository.save(any(BorrowRequest.class))).thenAnswer(inv -> inv.getArgument(0));
         when(toolReviewService.hasReviewed(any())).thenReturn(false);
 
@@ -558,6 +560,7 @@ class BorrowRequestServiceTest {
         updateRequest.setExpectedReturnDate(newEnd);
 
         when(borrowRequestRepository.findById(1000L)).thenReturn(Optional.of(existingRequest));
+        when(toolRepository.findById(10L)).thenReturn(Optional.of(tool));
         when(borrowRequestRepository.findConflictingBorrows(
                 eq(10L), anyList(), eq(newStart), eq(newEnd), eq(1000L)))
                 .thenReturn(new ArrayList<>());
