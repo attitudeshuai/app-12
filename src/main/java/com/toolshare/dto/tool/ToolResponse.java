@@ -26,4 +26,6 @@ public class ToolResponse {
     private LocalDateTime createdAt;
     private Double averageRating;
     private Long reviewCount;
+    private Boolean isFavorited;
+    private Long favoriteCount;
 }

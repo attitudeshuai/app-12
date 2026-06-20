@@ -12,8 +12,10 @@ import com.toolshare.entity.User;
 import com.toolshare.exception.BadRequestException;
 import com.toolshare.exception.ResourceNotFoundException;
 import com.toolshare.repository.ToolBoxRepository;
+import com.toolshare.repository.ToolFavoriteRepository;
 import com.toolshare.repository.ToolRepository;
 import com.toolshare.repository.UserRepository;
+import com.toolshare.util.SecurityUtil;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -36,13 +38,15 @@ public class ToolService {
     private final ToolBoxRepository toolBoxRepository;
     private final UserRepository userRepository;
     private final ToolReviewService toolReviewService;
+    private final ToolFavoriteRepository toolFavoriteRepository;
 
     public ToolService(ToolRepository toolRepository, ToolBoxRepository toolBoxRepository, UserRepository userRepository,
-                       ToolReviewService toolReviewService) {
+                       ToolReviewService toolReviewService, ToolFavoriteRepository toolFavoriteRepository) {
         this.toolRepository = toolRepository;
         this.toolBoxRepository = toolBoxRepository;
         this.userRepository = userRepository;
         this.toolReviewService = toolReviewService;
+        this.toolFavoriteRepository = toolFavoriteRepository;
     }
 
     public PageResponse<ToolResponse> getAllTools(String keyword, String category, ToolStatus status, Long boxId,
@@ -178,6 +182,19 @@ public class ToolService {
             userRepository.findAllById(ownerIds).forEach(u -> ownerNameMap.put(u.getId(), u.getUsername()));
         }
 
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        Set<Long> favoritedToolIds = new HashSet<>();
+        if (currentUserId != null && !toolIds.isEmpty()) {
+            favoritedToolIds = new HashSet<>(toolFavoriteRepository.findFavoritedToolIdsByUserIdAndToolIds(currentUserId, new ArrayList<>(toolIds)));
+        }
+
+        Map<Long, Long> favoriteCountMap = new HashMap<>();
+        if (!toolIds.isEmpty()) {
+            for (Long toolId : toolIds) {
+                favoriteCountMap.put(toolId, toolFavoriteRepository.countByToolId(toolId));
+            }
+        }
+
         List<ToolResponse> responses = new ArrayList<>();
         for (Tool tool : tools) {
             ToolResponse response = new ToolResponse();
@@ -196,6 +213,8 @@ public class ToolService {
             response.setOwnerName(ownerNameMap.get(tool.getOwnerId()));
             response.setAverageRating(averageRatingMap.get(tool.getId()));
             response.setReviewCount(reviewCountMap.get(tool.getId()));
+            response.setIsFavorited(currentUserId != null && favoritedToolIds.contains(tool.getId()));
+            response.setFavoriteCount(favoriteCountMap.get(tool.getId()));
 
             responses.add(response);
         }
@@ -225,6 +244,14 @@ public class ToolService {
 
         response.setAverageRating(toolReviewService.getAverageRatingByToolId(tool.getId()));
         response.setReviewCount(toolReviewService.getReviewCountByToolId(tool.getId()));
+
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        if (currentUserId != null) {
+            response.setIsFavorited(toolFavoriteRepository.existsByUserIdAndToolId(currentUserId, tool.getId()));
+        } else {
+            response.setIsFavorited(false);
+        }
+        response.setFavoriteCount(toolFavoriteRepository.countByToolId(tool.getId()));
 
         return response;
     }
