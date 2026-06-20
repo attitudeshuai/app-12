@@ -4,5 +4,6 @@ public enum ToolLogAction {
     BORROW,
     RETURN,
     REPORT,
-    REPAIR
+    REPAIR,
+    MAINTENANCE
 }
