@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -47,4 +48,8 @@ public interface ToolRepository extends JpaRepository<Tool, Long> {
     List<Object[]> countByCategory();
 
     List<Tool> findByBoxId(Long boxId);
+
+    @Query("SELECT t.ownerId, COUNT(t) FROM Tool t " +
+           "WHERE t.createdAt >= :startTime GROUP BY t.ownerId")
+    List<Object[]> countByOwnerIdSince(@Param("startTime") LocalDateTime startTime);
 }

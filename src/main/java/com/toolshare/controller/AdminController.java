@@ -6,6 +6,7 @@ import com.toolshare.dto.admin.UpdateUserEnabledRequest;
 import com.toolshare.dto.admin.UpdateUserRoleRequest;
 import com.toolshare.dto.auth.UserResponse;
 import com.toolshare.dto.borrowrequest.BorrowRequestResponse;
+import com.toolshare.dto.stats.UserActivityRankingResponse;
 import com.toolshare.dto.tool.ToolResponse;
 import com.toolshare.dto.toolbox.ToolBoxResponse;
 import com.toolshare.entity.BorrowRequestStatus;
@@ -13,6 +14,7 @@ import com.toolshare.entity.Role;
 import com.toolshare.entity.ToolLogAction;
 import com.toolshare.entity.ToolStatus;
 import com.toolshare.service.AdminService;
+import com.toolshare.service.UserActivityService;
 import com.toolshare.util.SecurityUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -33,9 +36,11 @@ import java.time.format.DateTimeFormatter;
 public class AdminController {
 
     private final AdminService adminService;
+    private final UserActivityService userActivityService;
 
-    public AdminController(AdminService adminService) {
+    public AdminController(AdminService adminService, UserActivityService userActivityService) {
         this.adminService = adminService;
+        this.userActivityService = userActivityService;
     }
 
     @GetMapping("/users")
@@ -160,5 +165,22 @@ public class AdminController {
         return ResponseEntity.ok()
                 .headers(headers)
                 .body(csvData);
+    }
+
+    @GetMapping("/user-activity-ranking")
+    @Operation(summary = "用户活跃度排行")
+    public ApiResponse<List<UserActivityRankingResponse>> getUserActivityRanking(
+            @RequestParam(defaultValue = "30") int days,
+            @RequestParam(defaultValue = "20") int limit) {
+        if (days <= 0) {
+            days = 30;
+        }
+        if (limit <= 0) {
+            limit = 20;
+        }
+        if (limit > 100) {
+            limit = 100;
+        }
+        return ApiResponse.success(userActivityService.getActivityRanking(days, limit));
     }
 }

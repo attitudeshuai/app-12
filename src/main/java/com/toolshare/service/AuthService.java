@@ -6,10 +6,12 @@ import com.toolshare.dto.auth.LoginRequest;
 import com.toolshare.dto.auth.RegisterRequest;
 import com.toolshare.dto.auth.UpdateUserRequest;
 import com.toolshare.dto.auth.UserResponse;
+import com.toolshare.entity.LoginRecord;
 import com.toolshare.entity.Role;
 import com.toolshare.entity.User;
 import com.toolshare.exception.BadRequestException;
 import com.toolshare.exception.ResourceNotFoundException;
+import com.toolshare.repository.LoginRecordRepository;
 import com.toolshare.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -21,11 +23,13 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final LoginRecordRepository loginRecordRepository;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil, LoginRecordRepository loginRecordRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.loginRecordRepository = loginRecordRepository;
     }
 
     @Transactional
@@ -56,6 +60,10 @@ public class AuthService {
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new BadRequestException("用户名或密码错误");
         }
+
+        LoginRecord loginRecord = new LoginRecord();
+        loginRecord.setUserId(user.getId());
+        loginRecordRepository.save(loginRecord);
 
         String token = jwtUtil.generateToken(user.getId(), user.getUsername());
         return new LoginResponse(token, toResponse(user));
