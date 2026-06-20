@@ -63,4 +63,15 @@ public interface BorrowRequestRepository extends JpaRepository<BorrowRequest, Lo
 
     @Query("SELECT br FROM BorrowRequest br WHERE br.toolId IN :toolIds AND br.status = :status AND br.actualReturnDate IS NULL")
     List<BorrowRequest> findActiveBorrowsByToolIds(@Param("toolIds") List<Long> toolIds, @Param("status") BorrowRequestStatus status);
+
+    @Query("SELECT br FROM BorrowRequest br WHERE br.toolId = :toolId " +
+           "AND br.status IN (:statuses) " +
+           "AND br.startDate < :endDate " +
+           "AND br.expectedReturnDate > :startDate " +
+           "AND (:excludeId IS NULL OR br.id != :excludeId)")
+    List<BorrowRequest> findConflictingBorrows(@Param("toolId") Long toolId,
+                                               @Param("statuses") List<BorrowRequestStatus> statuses,
+                                               @Param("startDate") LocalDate startDate,
+                                               @Param("endDate") LocalDate endDate,
+                                               @Param("excludeId") Long excludeId);
 }

@@ -32,6 +32,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -116,6 +117,8 @@ public class BorrowRequestService {
             throw new BadRequestException("开始日期不能晚于预计归还日期");
         }
 
+        checkBookingConflict(request.getToolId(), request.getStartDate(), request.getExpectedReturnDate(), null);
+
         BorrowRequest borrowRequest = new BorrowRequest();
         borrowRequest.setToolId(request.getToolId());
         borrowRequest.setRequesterId(requesterId);
@@ -152,11 +155,17 @@ public class BorrowRequestService {
             throw new BadRequestException("只能修改待审核的申请");
         }
 
+        LocalDate originalStartDate = borrowRequest.getStartDate();
+        LocalDate originalExpectedReturnDate = borrowRequest.getExpectedReturnDate();
+        boolean dateChanged = false;
+
         if (request.getStartDate() != null) {
             borrowRequest.setStartDate(request.getStartDate());
+            dateChanged = true;
         }
         if (request.getExpectedReturnDate() != null) {
             borrowRequest.setExpectedReturnDate(request.getExpectedReturnDate());
+            dateChanged = true;
         }
         if (request.getRemark() != null) {
             borrowRequest.setRemark(request.getRemark());
@@ -164,6 +173,11 @@ public class BorrowRequestService {
 
         if (borrowRequest.getStartDate().isAfter(borrowRequest.getExpectedReturnDate())) {
             throw new BadRequestException("开始日期不能晚于预计归还日期");
+        }
+
+        if (dateChanged) {
+            checkBookingConflict(borrowRequest.getToolId(), borrowRequest.getStartDate(),
+                    borrowRequest.getExpectedReturnDate(), borrowRequest.getId());
         }
 
         BorrowRequest savedRequest = borrowRequestRepository.save(borrowRequest);
@@ -380,6 +394,39 @@ public class BorrowRequestService {
             response.setIsOverdue(false);
             response.setOverdueDays(0);
             response.setIsDueSoon(false);
+        }
+    }
+
+    private void checkBookingConflict(Long toolId, LocalDate startDate, LocalDate endDate, Long excludeId) {
+        List<BorrowRequestStatus> activeStatuses = Arrays.asList(
+                BorrowRequestStatus.PENDING,
+                BorrowRequestStatus.APPROVED
+        );
+
+        List<BorrowRequest> conflicts = borrowRequestRepository.findConflictingBorrows(
+                toolId, activeStatuses, startDate, endDate, excludeId);
+
+        if (!conflicts.isEmpty()) {
+            BorrowRequest firstConflict = conflicts.get(0);
+            userRepository.findById(firstConflict.getRequesterId()).ifPresentOrElse(
+                    user -> {
+                        throw new BadRequestException(String.format(
+                                "该工具在 %s 至 %s 时段已被 %s 预约（状态：%s），请选择其他时段",
+                                firstConflict.getStartDate(),
+                                firstConflict.getExpectedReturnDate(),
+                                user.getUsername(),
+                                firstConflict.getStatus() == BorrowRequestStatus.PENDING ? "待审核" : "已批准"
+                        ));
+                    },
+                    () -> {
+                        throw new BadRequestException(String.format(
+                                "该工具在 %s 至 %s 时段已被其他用户预约（状态：%s），请选择其他时段",
+                                firstConflict.getStartDate(),
+                                firstConflict.getExpectedReturnDate(),
+                                firstConflict.getStatus() == BorrowRequestStatus.PENDING ? "待审核" : "已批准"
+                        ));
+                    }
+            );
         }
     }
 }

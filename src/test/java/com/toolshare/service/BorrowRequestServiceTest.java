@@ -1,5 +1,8 @@
 package com.toolshare.service;
 
+import com.toolshare.dto.borrowrequest.BorrowRequestResponse;
+import com.toolshare.dto.borrowrequest.CreateBorrowRequestRequest;
+import com.toolshare.dto.borrowrequest.UpdateBorrowRequestRequest;
 import com.toolshare.dto.borrowrequest.UpdateBorrowStatusRequest;
 import com.toolshare.entity.BorrowRequest;
 import com.toolshare.entity.BorrowRequestStatus;
@@ -28,10 +31,14 @@ import org.mockito.quality.Strictness;
 import org.mockito.junit.jupiter.MockitoSettings;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -331,5 +338,235 @@ class BorrowRequestServiceTest {
         assertEquals(ToolStatus.MAINTENANCE, originalMaintenance.getStatus(),
                 "原本就维护的工具不应被恢复为AVAILABLE");
         assertNull(originalMaintenance.getStatusBeforeBoxDeactivated());
+    }
+
+    @Test
+    @DisplayName("创建预约 - 时段与已存在的PENDING申请冲突 - 应抛出异常")
+    void createBorrowRequest_ConflictWithPending_ShouldThrow() {
+        tool.setStatus(ToolStatus.AVAILABLE);
+        LocalDate startDate = LocalDate.now().plusDays(1);
+        LocalDate endDate = LocalDate.now().plusDays(5);
+
+        CreateBorrowRequestRequest request = new CreateBorrowRequestRequest();
+        request.setToolId(10L);
+        request.setStartDate(startDate);
+        request.setExpectedReturnDate(endDate);
+
+        BorrowRequest existingRequest = new BorrowRequest();
+        existingRequest.setId(2000L);
+        existingRequest.setToolId(10L);
+        existingRequest.setStatus(BorrowRequestStatus.PENDING);
+        existingRequest.setStartDate(startDate.minusDays(1));
+        existingRequest.setExpectedReturnDate(endDate.plusDays(1));
+        existingRequest.setRequesterId(300L);
+
+        when(toolRepository.findById(10L)).thenReturn(Optional.of(tool));
+        when(toolBoxRepository.findById(1L)).thenReturn(Optional.of(activeToolBox));
+        when(borrowRequestRepository.findConflictingBorrows(
+                eq(10L), anyList(), eq(startDate), eq(endDate), isNull()))
+                .thenReturn(java.util.Arrays.asList(existingRequest));
+        when(userRepository.findById(300L)).thenReturn(Optional.of(new User()));
+
+        BadRequestException ex = assertThrows(BadRequestException.class, () ->
+                borrowRequestService.createBorrowRequest(request, requesterId));
+
+        assertTrue(ex.getMessage().contains("时段已被"));
+        assertTrue(ex.getMessage().contains("待审核"));
+        verify(borrowRequestRepository, never()).save(any(BorrowRequest.class));
+    }
+
+    @Test
+    @DisplayName("创建预约 - 时段与已存在的APPROVED申请冲突 - 应抛出异常")
+    void createBorrowRequest_ConflictWithApproved_ShouldThrow() {
+        tool.setStatus(ToolStatus.AVAILABLE);
+        LocalDate startDate = LocalDate.now().plusDays(1);
+        LocalDate endDate = LocalDate.now().plusDays(5);
+
+        CreateBorrowRequestRequest request = new CreateBorrowRequestRequest();
+        request.setToolId(10L);
+        request.setStartDate(startDate);
+        request.setExpectedReturnDate(endDate);
+
+        BorrowRequest existingRequest = new BorrowRequest();
+        existingRequest.setId(2000L);
+        existingRequest.setToolId(10L);
+        existingRequest.setStatus(BorrowRequestStatus.APPROVED);
+        existingRequest.setStartDate(startDate);
+        existingRequest.setExpectedReturnDate(endDate);
+        existingRequest.setRequesterId(300L);
+
+        when(toolRepository.findById(10L)).thenReturn(Optional.of(tool));
+        when(toolBoxRepository.findById(1L)).thenReturn(Optional.of(activeToolBox));
+        when(borrowRequestRepository.findConflictingBorrows(
+                eq(10L), anyList(), eq(startDate), eq(endDate), isNull()))
+                .thenReturn(java.util.Arrays.asList(existingRequest));
+        when(userRepository.findById(300L)).thenReturn(Optional.of(new User()));
+
+        BadRequestException ex = assertThrows(BadRequestException.class, () ->
+                borrowRequestService.createBorrowRequest(request, requesterId));
+
+        assertTrue(ex.getMessage().contains("已批准"));
+        verify(borrowRequestRepository, never()).save(any(BorrowRequest.class));
+    }
+
+    @Test
+    @DisplayName("创建预约 - 时段部分重叠 - 应检测到冲突")
+    void createBorrowRequest_PartialOverlap_ShouldThrow() {
+        tool.setStatus(ToolStatus.AVAILABLE);
+        LocalDate existingStart = LocalDate.now().plusDays(1);
+        LocalDate existingEnd = LocalDate.now().plusDays(5);
+        LocalDate newStart = LocalDate.now().plusDays(3);
+        LocalDate newEnd = LocalDate.now().plusDays(7);
+
+        CreateBorrowRequestRequest request = new CreateBorrowRequestRequest();
+        request.setToolId(10L);
+        request.setStartDate(newStart);
+        request.setExpectedReturnDate(newEnd);
+
+        BorrowRequest existingRequest = new BorrowRequest();
+        existingRequest.setId(2000L);
+        existingRequest.setToolId(10L);
+        existingRequest.setStatus(BorrowRequestStatus.APPROVED);
+        existingRequest.setStartDate(existingStart);
+        existingRequest.setExpectedReturnDate(existingEnd);
+        existingRequest.setRequesterId(300L);
+
+        when(toolRepository.findById(10L)).thenReturn(Optional.of(tool));
+        when(toolBoxRepository.findById(1L)).thenReturn(Optional.of(activeToolBox));
+        when(borrowRequestRepository.findConflictingBorrows(
+                eq(10L), anyList(), eq(newStart), eq(newEnd), isNull()))
+                .thenReturn(java.util.Arrays.asList(existingRequest));
+        when(userRepository.findById(300L)).thenReturn(Optional.of(new User()));
+
+        BadRequestException ex = assertThrows(BadRequestException.class, () ->
+                borrowRequestService.createBorrowRequest(request, requesterId));
+
+        assertNotNull(ex);
+    }
+
+    @Test
+    @DisplayName("创建预约 - 无冲突 - 应成功创建")
+    void createBorrowRequest_NoConflict_ShouldSucceed() {
+        tool.setStatus(ToolStatus.AVAILABLE);
+        LocalDate startDate = LocalDate.now().plusDays(1);
+        LocalDate endDate = LocalDate.now().plusDays(5);
+
+        CreateBorrowRequestRequest request = new CreateBorrowRequestRequest();
+        request.setToolId(10L);
+        request.setStartDate(startDate);
+        request.setExpectedReturnDate(endDate);
+
+        when(toolRepository.findById(10L)).thenReturn(Optional.of(tool));
+        when(toolBoxRepository.findById(1L)).thenReturn(Optional.of(activeToolBox));
+        when(borrowRequestRepository.findConflictingBorrows(
+                eq(10L), anyList(), eq(startDate), eq(endDate), isNull()))
+                .thenReturn(new ArrayList<>());
+        when(borrowRequestRepository.save(any(BorrowRequest.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        BorrowRequestResponse response = borrowRequestService.createBorrowRequest(request, requesterId);
+
+        assertNotNull(response);
+        verify(borrowRequestRepository).save(any(BorrowRequest.class));
+    }
+
+    @Test
+    @DisplayName("更新预约 - 时段与其他申请冲突 - 应抛出异常")
+    void updateBorrowRequest_ConflictWithOther_ShouldThrow() {
+        tool.setStatus(ToolStatus.AVAILABLE);
+        LocalDate newStart = LocalDate.now().plusDays(10);
+        LocalDate newEnd = LocalDate.now().plusDays(15);
+
+        BorrowRequest existingRequest = new BorrowRequest();
+        existingRequest.setId(1000L);
+        existingRequest.setToolId(10L);
+        existingRequest.setStatus(BorrowRequestStatus.PENDING);
+        existingRequest.setRequesterId(requesterId);
+        existingRequest.setStartDate(LocalDate.now().plusDays(1));
+        existingRequest.setExpectedReturnDate(LocalDate.now().plusDays(5));
+
+        BorrowRequest otherRequest = new BorrowRequest();
+        otherRequest.setId(2000L);
+        otherRequest.setToolId(10L);
+        otherRequest.setStatus(BorrowRequestStatus.APPROVED);
+        otherRequest.setStartDate(newStart);
+        otherRequest.setExpectedReturnDate(newEnd);
+        otherRequest.setRequesterId(300L);
+
+        UpdateBorrowRequestRequest updateRequest = new UpdateBorrowRequestRequest();
+        updateRequest.setStartDate(newStart);
+        updateRequest.setExpectedReturnDate(newEnd);
+
+        when(borrowRequestRepository.findById(1000L)).thenReturn(Optional.of(existingRequest));
+        when(borrowRequestRepository.findConflictingBorrows(
+                eq(10L), anyList(), eq(newStart), eq(newEnd), eq(1000L)))
+                .thenReturn(java.util.Arrays.asList(otherRequest));
+        when(userRepository.findById(300L)).thenReturn(Optional.of(new User()));
+
+        BadRequestException ex = assertThrows(BadRequestException.class, () ->
+                borrowRequestService.updateBorrowRequest(1000L, updateRequest, requesterId));
+
+        assertTrue(ex.getMessage().contains("时段已被"));
+        verify(borrowRequestRepository, never()).save(any(BorrowRequest.class));
+    }
+
+    @Test
+    @DisplayName("更新预约 - 仅修改备注不修改日期 - 不检测冲突")
+    void updateBorrowRequest_OnlyRemark_ShouldNotCheckConflict() {
+        tool.setStatus(ToolStatus.AVAILABLE);
+        LocalDate originalStart = LocalDate.now().plusDays(1);
+        LocalDate originalEnd = LocalDate.now().plusDays(5);
+
+        BorrowRequest existingRequest = new BorrowRequest();
+        existingRequest.setId(1000L);
+        existingRequest.setToolId(10L);
+        existingRequest.setStatus(BorrowRequestStatus.PENDING);
+        existingRequest.setRequesterId(requesterId);
+        existingRequest.setStartDate(originalStart);
+        existingRequest.setExpectedReturnDate(originalEnd);
+
+        UpdateBorrowRequestRequest updateRequest = new UpdateBorrowRequestRequest();
+        updateRequest.setRemark("新备注");
+
+        when(borrowRequestRepository.findById(1000L)).thenReturn(Optional.of(existingRequest));
+        when(borrowRequestRepository.save(any(BorrowRequest.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(toolReviewService.hasReviewed(any())).thenReturn(false);
+
+        borrowRequestService.updateBorrowRequest(1000L, updateRequest, requesterId);
+
+        verify(borrowRequestRepository, never()).findConflictingBorrows(
+                any(), anyList(), any(), any(), any());
+        verify(borrowRequestRepository).save(any(BorrowRequest.class));
+    }
+
+    @Test
+    @DisplayName("更新预约 - 与自身冲突 - 应被排除检测")
+    void updateBorrowRequest_SelfConflict_ShouldBeExcluded() {
+        tool.setStatus(ToolStatus.AVAILABLE);
+        LocalDate newStart = LocalDate.now().plusDays(2);
+        LocalDate newEnd = LocalDate.now().plusDays(6);
+
+        BorrowRequest existingRequest = new BorrowRequest();
+        existingRequest.setId(1000L);
+        existingRequest.setToolId(10L);
+        existingRequest.setStatus(BorrowRequestStatus.PENDING);
+        existingRequest.setRequesterId(requesterId);
+        existingRequest.setStartDate(LocalDate.now().plusDays(1));
+        existingRequest.setExpectedReturnDate(LocalDate.now().plusDays(5));
+
+        UpdateBorrowRequestRequest updateRequest = new UpdateBorrowRequestRequest();
+        updateRequest.setStartDate(newStart);
+        updateRequest.setExpectedReturnDate(newEnd);
+
+        when(borrowRequestRepository.findById(1000L)).thenReturn(Optional.of(existingRequest));
+        when(borrowRequestRepository.findConflictingBorrows(
+                eq(10L), anyList(), eq(newStart), eq(newEnd), eq(1000L)))
+                .thenReturn(new ArrayList<>());
+        when(borrowRequestRepository.save(any(BorrowRequest.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(toolReviewService.hasReviewed(any())).thenReturn(false);
+
+        BorrowRequestResponse response = borrowRequestService.updateBorrowRequest(1000L, updateRequest, requesterId);
+
+        assertNotNull(response);
+        verify(borrowRequestRepository).save(any(BorrowRequest.class));
     }
 }
