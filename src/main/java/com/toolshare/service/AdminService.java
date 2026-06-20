@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.List;
 
 @Service
 public class AdminService {
@@ -29,6 +28,7 @@ public class AdminService {
     private final BorrowRequestService borrowRequestService;
     private final ToolService toolService;
     private final ToolBoxService toolBoxService;
+    private final ToolReviewService toolReviewService;
 
     public AdminService(UserRepository userRepository,
                        ToolRepository toolRepository,
@@ -36,7 +36,8 @@ public class AdminService {
                        BorrowRequestRepository borrowRequestRepository,
                        BorrowRequestService borrowRequestService,
                        ToolService toolService,
-                       ToolBoxService toolBoxService) {
+                       ToolBoxService toolBoxService,
+                       ToolReviewService toolReviewService) {
         this.userRepository = userRepository;
         this.toolRepository = toolRepository;
         this.toolBoxRepository = toolBoxRepository;
@@ -44,6 +45,7 @@ public class AdminService {
         this.borrowRequestService = borrowRequestService;
         this.toolService = toolService;
         this.toolBoxService = toolBoxService;
+        this.toolReviewService = toolReviewService;
     }
 
     public PageResponse<UserResponse> getAllUsers(String keyword, Role role, Boolean isEnabled,
@@ -107,7 +109,7 @@ public class AdminService {
 
         tool.setStatus(ToolStatus.DISABLED);
         Tool savedTool = toolRepository.save(tool);
-        return ToolService.toToolResponse(savedTool, userRepository);
+        return ToolService.toToolResponse(savedTool, toolBoxRepository, userRepository, toolReviewService);
     }
 
     @Transactional
@@ -127,7 +129,7 @@ public class AdminService {
         }
 
         Tool savedTool = toolRepository.save(tool);
-        return ToolService.toToolResponse(savedTool, userRepository);
+        return ToolService.toToolResponse(savedTool, toolBoxRepository, userRepository, toolReviewService);
     }
 
     public PageResponse<ToolBoxResponse> getAllToolBoxes(String keyword, Boolean isActive,
@@ -137,48 +139,12 @@ public class AdminService {
 
     @Transactional
     public ToolBoxResponse deactivateToolBox(Long id) {
-        ToolBox toolBox = toolBoxRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("工具箱不存在"));
-
-        if (!Boolean.TRUE.equals(toolBox.getIsActive())) {
-            throw new BadRequestException("工具箱已停用");
-        }
-
-        toolBox.setIsActive(false);
-
-        List<Tool> tools = toolRepository.findByBoxId(id);
-        for (Tool tool : tools) {
-            if (tool.getStatus() == ToolStatus.AVAILABLE) {
-                tool.setStatus(ToolStatus.MAINTENANCE);
-                toolRepository.save(tool);
-            }
-        }
-
-        ToolBox savedToolBox = toolBoxRepository.save(toolBox);
-        return ToolBoxService.toToolBoxResponse(savedToolBox, userRepository);
+        return toolBoxService.adminUpdateToolBoxActive(id, false);
     }
 
     @Transactional
     public ToolBoxResponse activateToolBox(Long id) {
-        ToolBox toolBox = toolBoxRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("工具箱不存在"));
-
-        if (Boolean.TRUE.equals(toolBox.getIsActive())) {
-            throw new BadRequestException("工具箱已激活");
-        }
-
-        toolBox.setIsActive(true);
-
-        List<Tool> tools = toolRepository.findByBoxId(id);
-        for (Tool tool : tools) {
-            if (tool.getStatus() == ToolStatus.MAINTENANCE) {
-                tool.setStatus(ToolStatus.AVAILABLE);
-                toolRepository.save(tool);
-            }
-        }
-
-        ToolBox savedToolBox = toolBoxRepository.save(toolBox);
-        return ToolBoxService.toToolBoxResponse(savedToolBox, userRepository);
+        return toolBoxService.adminUpdateToolBoxActive(id, true);
     }
 
     public PageResponse<BorrowRequestResponse> getAllBorrowRequests(BorrowRequestStatus status, Long requesterId,

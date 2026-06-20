@@ -118,6 +118,9 @@ public class ToolService {
             tool.setPurchaseDate(request.getPurchaseDate());
         }
         if (request.getStatus() != null) {
+            if (request.getStatus() == com.toolshare.entity.ToolStatus.DISABLED) {
+                throw new BadRequestException("只有管理员可以禁用工具");
+            }
             tool.setStatus(request.getStatus());
         }
 
@@ -132,6 +135,10 @@ public class ToolService {
 
         if (!tool.getOwnerId().equals(currentUserId)) {
             throw new BadRequestException("无权修改此工具状态");
+        }
+
+        if (request.getStatus() == com.toolshare.entity.ToolStatus.DISABLED) {
+            throw new BadRequestException("只有管理员可以禁用工具");
         }
 
         tool.setStatus(request.getStatus());
@@ -195,27 +202,8 @@ public class ToolService {
         return responses;
     }
 
-    public static ToolResponse toToolResponse(Tool tool, UserRepository userRepository) {
-        ToolResponse response = new ToolResponse();
-        response.setId(tool.getId());
-        response.setBoxId(tool.getBoxId());
-        response.setName(tool.getName());
-        response.setCategory(tool.getCategory());
-        response.setStatus(tool.getStatus());
-        response.setDescription(tool.getDescription());
-        response.setImage(tool.getImage());
-        response.setPurchaseDate(tool.getPurchaseDate());
-        response.setOwnerId(tool.getOwnerId());
-        response.setCreatedAt(tool.getCreatedAt());
-
-        userRepository.findById(tool.getOwnerId()).ifPresent(user ->
-                response.setOwnerName(user.getUsername())
-        );
-
-        return response;
-    }
-
-    private ToolResponse toResponse(Tool tool) {
+    public static ToolResponse toToolResponse(Tool tool, ToolBoxRepository toolBoxRepository,
+                                               UserRepository userRepository, ToolReviewService toolReviewService) {
         ToolResponse response = new ToolResponse();
         response.setId(tool.getId());
         response.setBoxId(tool.getBoxId());
@@ -236,10 +224,16 @@ public class ToolService {
                 response.setOwnerName(user.getUsername())
         );
 
-        response.setAverageRating(toolReviewService.getAverageRatingByToolId(tool.getId()));
-        response.setReviewCount(toolReviewService.getReviewCountByToolId(tool.getId()));
+        if (toolReviewService != null) {
+            response.setAverageRating(toolReviewService.getAverageRatingByToolId(tool.getId()));
+            response.setReviewCount(toolReviewService.getReviewCountByToolId(tool.getId()));
+        }
 
         return response;
+    }
+
+    private ToolResponse toResponse(Tool tool) {
+        return toToolResponse(tool, toolBoxRepository, userRepository, toolReviewService);
     }
 
     public boolean isToolOwner(Long toolId, Long userId) {

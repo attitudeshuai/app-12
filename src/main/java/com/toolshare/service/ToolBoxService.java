@@ -99,28 +99,7 @@ public class ToolBoxService {
             toolBox.setImage(request.getImage());
         }
         if (request.getIsActive() != null) {
-            boolean wasActive = Boolean.TRUE.equals(toolBox.getIsActive());
-            boolean willBeActive = Boolean.TRUE.equals(request.getIsActive());
-
-            toolBox.setIsActive(request.getIsActive());
-
-            if (wasActive && !willBeActive) {
-                List<Tool> tools = toolRepository.findByBoxId(id);
-                for (Tool tool : tools) {
-                    if (tool.getStatus() == ToolStatus.AVAILABLE) {
-                        tool.setStatus(ToolStatus.MAINTENANCE);
-                        toolRepository.save(tool);
-                    }
-                }
-            } else if (!wasActive && willBeActive) {
-                List<Tool> tools = toolRepository.findByBoxId(id);
-                for (Tool tool : tools) {
-                    if (tool.getStatus() == ToolStatus.MAINTENANCE) {
-                        tool.setStatus(ToolStatus.AVAILABLE);
-                        toolRepository.save(tool);
-                    }
-                }
-            }
+            updateToolBoxActiveInternal(toolBox, request.getIsActive());
         }
 
         ToolBox savedToolBox = toolBoxRepository.save(toolBox);
@@ -173,6 +152,56 @@ public class ToolBoxService {
         );
 
         return response;
+    }
+
+    private void updateToolBoxActiveInternal(ToolBox toolBox, Boolean isActive) {
+        boolean wasActive = Boolean.TRUE.equals(toolBox.getIsActive());
+        boolean willBeActive = Boolean.TRUE.equals(isActive);
+
+        if (wasActive == willBeActive) {
+            return;
+        }
+
+        toolBox.setIsActive(isActive);
+
+        if (wasActive && !willBeActive) {
+            List<Tool> tools = toolRepository.findByBoxId(toolBox.getId());
+            for (Tool tool : tools) {
+                if (tool.getStatus() == ToolStatus.AVAILABLE) {
+                    tool.setStatus(ToolStatus.MAINTENANCE);
+                    toolRepository.save(tool);
+                }
+            }
+        } else if (!wasActive && willBeActive) {
+            List<Tool> tools = toolRepository.findByBoxId(toolBox.getId());
+            for (Tool tool : tools) {
+                if (tool.getStatus() == ToolStatus.MAINTENANCE) {
+                    tool.setStatus(ToolStatus.AVAILABLE);
+                    toolRepository.save(tool);
+                }
+            }
+        }
+    }
+
+    @Transactional
+    public ToolBoxResponse adminUpdateToolBoxActive(Long id, Boolean isActive) {
+        ToolBox toolBox = toolBoxRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("工具箱不存在"));
+
+        boolean wasActive = Boolean.TRUE.equals(toolBox.getIsActive());
+        boolean willBeActive = Boolean.TRUE.equals(isActive);
+
+        if (!wasActive && !willBeActive) {
+            throw new BadRequestException("工具箱已停用");
+        }
+        if (wasActive && willBeActive) {
+            throw new BadRequestException("工具箱已激活");
+        }
+
+        updateToolBoxActiveInternal(toolBox, isActive);
+
+        ToolBox savedToolBox = toolBoxRepository.save(toolBox);
+        return toResponse(savedToolBox);
     }
 
     public boolean isToolBoxManager(Long toolBoxId, Long userId) {
