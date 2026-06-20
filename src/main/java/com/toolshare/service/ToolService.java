@@ -1,12 +1,15 @@
 package com.toolshare.service;
 
 import com.toolshare.dto.PageResponse;
+import com.toolshare.dto.tool.CompleteRepairRequest;
 import com.toolshare.dto.tool.CreateToolRequest;
+import com.toolshare.dto.tool.ReportToolRequest;
 import com.toolshare.dto.tool.ToolResponse;
 import com.toolshare.dto.tool.UpdateToolRequest;
 import com.toolshare.dto.tool.UpdateToolStatusRequest;
 import com.toolshare.entity.Tool;
 import com.toolshare.entity.ToolBox;
+import com.toolshare.entity.ToolLogAction;
 import com.toolshare.entity.ToolStatus;
 import com.toolshare.entity.User;
 import com.toolshare.exception.BadRequestException;
@@ -39,14 +42,17 @@ public class ToolService {
     private final UserRepository userRepository;
     private final ToolReviewService toolReviewService;
     private final ToolFavoriteRepository toolFavoriteRepository;
+    private final ToolLogService toolLogService;
 
     public ToolService(ToolRepository toolRepository, ToolBoxRepository toolBoxRepository, UserRepository userRepository,
-                       ToolReviewService toolReviewService, ToolFavoriteRepository toolFavoriteRepository) {
+                       ToolReviewService toolReviewService, ToolFavoriteRepository toolFavoriteRepository,
+                       ToolLogService toolLogService) {
         this.toolRepository = toolRepository;
         this.toolBoxRepository = toolBoxRepository;
         this.userRepository = userRepository;
         this.toolReviewService = toolReviewService;
         this.toolFavoriteRepository = toolFavoriteRepository;
+        this.toolLogService = toolLogService;
     }
 
     public PageResponse<ToolResponse> getAllTools(String keyword, String category, ToolStatus status, Long boxId,
@@ -147,6 +153,54 @@ public class ToolService {
 
         tool.setStatus(request.getStatus());
         Tool savedTool = toolRepository.save(tool);
+        return toResponse(savedTool);
+    }
+
+    @Transactional
+    public ToolResponse reportTool(Long id, ReportToolRequest request, Long currentUserId) {
+        Tool tool = toolRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("工具不存在"));
+
+        if (tool.getStatus() == ToolStatus.DISABLED) {
+            throw new BadRequestException("工具已被禁用，无法报修");
+        }
+
+        if (tool.getStatus() == ToolStatus.MAINTENANCE) {
+            throw new BadRequestException("工具已在维修中，无需重复报修");
+        }
+
+        tool.setStatus(ToolStatus.MAINTENANCE);
+        Tool savedTool = toolRepository.save(tool);
+
+        toolLogService.createLogInternal(id, currentUserId, ToolLogAction.REPORT, request.getDescription());
+
+        return toResponse(savedTool);
+    }
+
+    @Transactional
+    public ToolResponse completeRepair(Long id, CompleteRepairRequest request, Long currentUserId) {
+        Tool tool = toolRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("工具不存在"));
+
+        if (!tool.getOwnerId().equals(currentUserId)) {
+            throw new BadRequestException("只有工具所有者可以完成维修");
+        }
+
+        if (tool.getStatus() != ToolStatus.MAINTENANCE) {
+            throw new BadRequestException("工具不在维修状态，无法完成维修");
+        }
+
+        ToolBox toolBox = toolBoxRepository.findById(tool.getBoxId()).orElse(null);
+        if (toolBox != null && !Boolean.TRUE.equals(toolBox.getIsActive())) {
+            tool.setStatus(ToolStatus.MAINTENANCE);
+        } else {
+            tool.setStatus(ToolStatus.AVAILABLE);
+        }
+
+        Tool savedTool = toolRepository.save(tool);
+
+        toolLogService.createLogInternal(id, currentUserId, ToolLogAction.REPAIR, request.getDescription());
+
         return toResponse(savedTool);
     }
 

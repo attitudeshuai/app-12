@@ -2,7 +2,9 @@ package com.toolshare.controller;
 
 import com.toolshare.dto.ApiResponse;
 import com.toolshare.dto.PageResponse;
+import com.toolshare.dto.tool.CompleteRepairRequest;
 import com.toolshare.dto.tool.CreateToolRequest;
+import com.toolshare.dto.tool.ReportToolRequest;
 import com.toolshare.dto.tool.ToolResponse;
 import com.toolshare.dto.tool.UpdateToolRequest;
 import com.toolshare.dto.tool.UpdateToolStatusRequest;
@@ -75,6 +77,22 @@ public class ToolController {
                                                        @Valid @RequestBody UpdateToolStatusRequest request) {
         Long currentUserId = SecurityUtil.getCurrentUserId();
         return ApiResponse.success(toolService.updateToolStatus(id, request, currentUserId));
+    }
+
+    @PostMapping("/{id}/report")
+    @Operation(summary = "报修工具")
+    public ApiResponse<ToolResponse> reportTool(@PathVariable Long id,
+                                                 @Valid @RequestBody ReportToolRequest request) {
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        return ApiResponse.success(toolService.reportTool(id, request, currentUserId));
+    }
+
+    @PostMapping("/{id}/complete-repair")
+    @Operation(summary = "完成维修")
+    public ApiResponse<ToolResponse> completeRepair(@PathVariable Long id,
+                                                     @Valid @RequestBody CompleteRepairRequest request) {
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        return ApiResponse.success(toolService.completeRepair(id, request, currentUserId));
     }
 
     @DeleteMapping("/{id}")
