@@ -29,4 +29,6 @@ public interface OverdueRecordRepository extends JpaRepository<OverdueRecord, Lo
 
     @Query("SELECT o.requesterId, COUNT(o) FROM OverdueRecord o GROUP BY o.requesterId ORDER BY COUNT(o) DESC")
     Page<Object[]> countByRequester(Pageable pageable);
+
+    long countByRequesterId(Long requesterId);
 }

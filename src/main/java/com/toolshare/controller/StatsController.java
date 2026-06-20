@@ -3,8 +3,10 @@ package com.toolshare.controller;
 import com.toolshare.dto.ApiResponse;
 import com.toolshare.dto.stats.HotToolRank;
 import com.toolshare.dto.stats.OverviewStats;
+import com.toolshare.dto.stats.PersonalBorrowStats;
 import com.toolshare.dto.stats.TrendStats;
 import com.toolshare.service.StatsService;
+import com.toolshare.util.SecurityUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
@@ -48,5 +50,12 @@ public class StatsController {
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate) {
         return ApiResponse.success(statsService.getTrendStats(startDate, endDate));
+    }
+
+    @GetMapping("/personal-borrow")
+    @Operation(summary = "我的借用统计")
+    public ApiResponse<PersonalBorrowStats> getPersonalBorrowStats() {
+        Long userId = SecurityUtil.getCurrentUserId();
+        return ApiResponse.success(statsService.getPersonalBorrowStats(userId));
     }
 }

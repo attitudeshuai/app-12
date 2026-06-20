@@ -2,6 +2,7 @@ package com.toolshare.service;
 
 import com.toolshare.dto.stats.HotToolRank;
 import com.toolshare.dto.stats.OverviewStats;
+import com.toolshare.dto.stats.PersonalBorrowStats;
 import com.toolshare.dto.stats.TrendStats;
 import com.toolshare.entity.BorrowRequestStatus;
 import com.toolshare.entity.Tool;
@@ -203,6 +204,35 @@ public class StatsService {
                 })
                 .collect(Collectors.toList());
         stats.setToolLogsByAction(toolLogsByAction);
+
+        return stats;
+    }
+
+    public PersonalBorrowStats getPersonalBorrowStats(Long userId) {
+        PersonalBorrowStats stats = new PersonalBorrowStats();
+
+        long totalBorrowCount = borrowRequestRepository.countByRequesterIdAndStatusNot(
+                userId, BorrowRequestStatus.REJECTED);
+        stats.setTotalBorrowCount(totalBorrowCount);
+
+        long currentBorrowingCount = borrowRequestRepository
+                .countByRequesterIdAndStatusAndActualReturnDateIsNull(
+                        userId, BorrowRequestStatus.APPROVED);
+        stats.setCurrentBorrowingCount(currentBorrowingCount);
+
+        long overdueCount = overdueRecordRepository.countByRequesterId(userId);
+        stats.setOverdueCount(overdueCount);
+
+        long returnedCount = borrowRequestRepository
+                .countByRequesterIdAndStatusAndActualReturnDateIsNotNull(
+                        userId, BorrowRequestStatus.RETURNED);
+        double punctualityRate = 0.0;
+        if (returnedCount > 0) {
+            long onTimeCount = borrowRequestRepository.countOnTimeReturnsByRequesterId(
+                    userId, BorrowRequestStatus.RETURNED);
+            punctualityRate = Math.round(((double) onTimeCount / returnedCount) * 1000) / 10.0;
+        }
+        stats.setAverageReturnPunctualityRate(punctualityRate);
 
         return stats;
     }

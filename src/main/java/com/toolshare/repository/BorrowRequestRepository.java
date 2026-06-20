@@ -92,4 +92,18 @@ public interface BorrowRequestRepository extends JpaRepository<BorrowRequest, Lo
     @Query("SELECT br.toolId, COUNT(br) FROM BorrowRequest br " +
            "WHERE br.toolId IN :toolIds GROUP BY br.toolId")
     List<Object[]> countByToolIdsGrouped(@Param("toolIds") List<Long> toolIds);
+
+    long countByRequesterId(Long requesterId);
+
+    long countByRequesterIdAndStatusNot(Long requesterId, BorrowRequestStatus status);
+
+    long countByRequesterIdAndStatusAndActualReturnDateIsNull(Long requesterId, BorrowRequestStatus status);
+
+    @Query("SELECT COUNT(br) FROM BorrowRequest br WHERE br.requesterId = :requesterId " +
+           "AND br.status = :status AND br.actualReturnDate IS NOT NULL " +
+           "AND br.actualReturnDate <= br.expectedReturnDate")
+    long countOnTimeReturnsByRequesterId(@Param("requesterId") Long requesterId,
+                                         @Param("status") BorrowRequestStatus status);
+
+    long countByRequesterIdAndStatusAndActualReturnDateIsNotNull(Long requesterId, BorrowRequestStatus status);
 }
