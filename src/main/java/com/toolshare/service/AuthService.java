@@ -6,6 +6,7 @@ import com.toolshare.dto.auth.LoginRequest;
 import com.toolshare.dto.auth.RegisterRequest;
 import com.toolshare.dto.auth.UpdateUserRequest;
 import com.toolshare.dto.auth.UserResponse;
+import com.toolshare.entity.Role;
 import com.toolshare.entity.User;
 import com.toolshare.exception.BadRequestException;
 import com.toolshare.exception.ResourceNotFoundException;
@@ -44,7 +45,7 @@ public class AuthService {
         User savedUser = userRepository.save(user);
         String token = jwtUtil.generateToken(savedUser.getId(), savedUser.getUsername());
 
-        return new LoginResponse(token, toUserResponse(savedUser));
+        return new LoginResponse(token, toResponse(savedUser));
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -57,13 +58,13 @@ public class AuthService {
         }
 
         String token = jwtUtil.generateToken(user.getId(), user.getUsername());
-        return new LoginResponse(token, toUserResponse(user));
+        return new LoginResponse(token, toResponse(user));
     }
 
     public UserResponse getCurrentUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("用户不存在"));
-        return toUserResponse(user);
+        return toResponse(user);
     }
 
     @Transactional
@@ -94,10 +95,44 @@ public class AuthService {
         }
 
         User savedUser = userRepository.save(user);
-        return toUserResponse(savedUser);
+        return toResponse(savedUser);
     }
 
-    public static UserResponse toUserResponse(User user) {
+    public UserResponse adminGetUserById(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("用户不存在"));
+        return toResponse(user);
+    }
+
+    @Transactional
+    public UserResponse adminUpdateUserRole(Long id, Role role, Long currentUserId) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("用户不存在"));
+
+        if (user.getId().equals(currentUserId)) {
+            throw new BadRequestException("不能修改自己的角色");
+        }
+
+        user.setRole(role);
+        User savedUser = userRepository.save(user);
+        return toResponse(savedUser);
+    }
+
+    @Transactional
+    public UserResponse adminUpdateUserEnabled(Long id, Boolean isEnabled, Long currentUserId) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("用户不存在"));
+
+        if (user.getId().equals(currentUserId)) {
+            throw new BadRequestException("不能禁用自己的账号");
+        }
+
+        user.setIsEnabled(isEnabled);
+        User savedUser = userRepository.save(user);
+        return toResponse(savedUser);
+    }
+
+    public UserResponse toUserResponse(User user) {
         return new UserResponse(
                 user.getId(),
                 user.getUsername(),
@@ -108,5 +143,9 @@ public class AuthService {
                 user.getCreatedAt(),
                 user.getUpdatedAt()
         );
+    }
+
+    private UserResponse toResponse(User user) {
+        return toUserResponse(user);
     }
 }

@@ -25,15 +25,18 @@ import java.time.LocalDate;
 public class AdminService {
 
     private final UserRepository userRepository;
+    private final AuthService authService;
     private final BorrowRequestService borrowRequestService;
     private final ToolService toolService;
     private final ToolBoxService toolBoxService;
 
     public AdminService(UserRepository userRepository,
+                       AuthService authService,
                        BorrowRequestService borrowRequestService,
                        ToolService toolService,
                        ToolBoxService toolBoxService) {
         this.userRepository = userRepository;
+        this.authService = authService;
         this.borrowRequestService = borrowRequestService;
         this.toolService = toolService;
         this.toolBoxService = toolBoxService;
@@ -45,43 +48,23 @@ public class AdminService {
         Pageable pageable = PageRequest.of(page, size, sort);
 
         Page<User> userPage = userRepository.search(keyword, role, isEnabled, pageable);
-        Page<UserResponse> responsePage = userPage.map(AuthService::toUserResponse);
+        Page<UserResponse> responsePage = userPage.map(authService::toUserResponse);
 
         return PageResponse.from(responsePage);
     }
 
     public UserResponse getUserById(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("用户不存在"));
-        return AuthService.toUserResponse(user);
+        return authService.adminGetUserById(id);
     }
 
     @Transactional
     public UserResponse updateUserRole(Long id, Role role, Long currentUserId) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("用户不存在"));
-
-        if (user.getId().equals(currentUserId)) {
-            throw new BadRequestException("不能修改自己的角色");
-        }
-
-        user.setRole(role);
-        User savedUser = userRepository.save(user);
-        return AuthService.toUserResponse(savedUser);
+        return authService.adminUpdateUserRole(id, role, currentUserId);
     }
 
     @Transactional
     public UserResponse updateUserEnabled(Long id, Boolean isEnabled, Long currentUserId) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("用户不存在"));
-
-        if (user.getId().equals(currentUserId)) {
-            throw new BadRequestException("不能禁用自己的账号");
-        }
-
-        user.setIsEnabled(isEnabled);
-        User savedUser = userRepository.save(user);
-        return AuthService.toUserResponse(savedUser);
+        return authService.adminUpdateUserEnabled(id, isEnabled, currentUserId);
     }
 
     public PageResponse<ToolResponse> getAllTools(String keyword, String category, ToolStatus status,

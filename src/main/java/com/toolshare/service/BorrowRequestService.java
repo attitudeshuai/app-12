@@ -238,7 +238,13 @@ public class BorrowRequestService {
                         .map(ToolBox::getIsActive)
                         .map(active -> Boolean.TRUE.equals(active))
                         .orElse(false);
-                tool.setStatus(toolBoxActive ? ToolStatus.AVAILABLE : ToolStatus.MAINTENANCE);
+                if (toolBoxActive) {
+                    tool.setStatus(ToolStatus.AVAILABLE);
+                    tool.setStatusBeforeBoxDeactivated(null);
+                } else {
+                    tool.setStatus(ToolStatus.MAINTENANCE);
+                    tool.setStatusBeforeBoxDeactivated(ToolStatus.AVAILABLE);
+                }
                 toolRepository.save(tool);
                 borrowRequest.setActualReturnDate(LocalDate.now());
                 toolLogService.createLogInternal(tool.getId(), borrowRequest.getRequesterId(),
