@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -59,12 +60,68 @@ public class ToolService {
 
     public PageResponse<ToolResponse> getAllTools(String keyword, String category, ToolStatus status, Long boxId,
                                                    int page, int size, String sortBy, String sortDir) {
+        return getAllTools(keyword, category, status, boxId, null, page, size, sortBy, sortDir);
+    }
+
+    public PageResponse<ToolResponse> getAllTools(String keyword, String category, ToolStatus status, Long boxId,
+                                                   List<Long> boxIds, int page, int size, String sortBy, String sortDir) {
+        List<Long> effectiveBoxIds = resolveBoxIds(boxId, boxIds);
+
+        if ("borrowCount".equals(sortBy)) {
+            return getAllToolsSortedByBorrowCount(keyword, category, status, effectiveBoxIds, page, size, sortDir);
+        }
+
         Sort sort = sortDir.equalsIgnoreCase("desc") ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        Page<Tool> toolPage = toolRepository.search(keyword, category, status, boxId, pageable);
+        Page<Tool> toolPage;
+        if (effectiveBoxIds != null && !effectiveBoxIds.isEmpty()) {
+            toolPage = toolRepository.searchWithMultipleBoxes(keyword, category, status, effectiveBoxIds, pageable);
+        } else if (boxId != null) {
+            toolPage = toolRepository.search(keyword, category, status, boxId, pageable);
+        } else {
+            toolPage = toolRepository.search(keyword, category, status, null, pageable);
+        }
+
         List<ToolResponse> responseList = toResponseList(toolPage.getContent());
         return PageResponse.of(responseList, toolPage.getTotalElements(), toolPage.getNumber(), toolPage.getSize());
+    }
+
+    private List<Long> resolveBoxIds(Long boxId, List<Long> boxIds) {
+        if (boxIds != null && !boxIds.isEmpty()) {
+            return boxIds;
+        }
+        if (boxId != null) {
+            return List.of(boxId);
+        }
+        return null;
+    }
+
+    private PageResponse<ToolResponse> getAllToolsSortedByBorrowCount(String keyword, String category, ToolStatus status,
+                                                                       List<Long> boxIds, int page, int size, String sortDir) {
+        List<Tool> allTools;
+        if (boxIds != null && !boxIds.isEmpty()) {
+            allTools = toolRepository.searchWithMultipleBoxes(keyword, category, status, boxIds, Pageable.unpaged()).getContent();
+        } else {
+            allTools = toolRepository.search(keyword, category, status, null, Pageable.unpaged()).getContent();
+        }
+
+        List<ToolResponse> allResponses = toResponseList(allTools);
+
+        Comparator<ToolResponse> borrowCountComparator = Comparator.comparing(
+                response -> response.getBorrowCount() != null ? response.getBorrowCount() : 0L
+        );
+        if ("desc".equalsIgnoreCase(sortDir)) {
+            borrowCountComparator = borrowCountComparator.reversed();
+        }
+        allResponses.sort(borrowCountComparator);
+
+        long totalElements = allResponses.size();
+        int fromIndex = Math.min(page * size, allResponses.size());
+        int toIndex = Math.min(fromIndex + size, allResponses.size());
+        List<ToolResponse> pageContent = allResponses.subList(fromIndex, toIndex);
+
+        return PageResponse.of(pageContent, totalElements, page, size);
     }
 
     public ToolResponse getToolById(Long id) {

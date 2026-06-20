@@ -16,6 +16,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/tools")
 @Tag(name = "工具管理", description = "工具的增删改查")
@@ -28,17 +30,18 @@ public class ToolController {
     }
 
     @GetMapping
-    @Operation(summary = "获取工具列表")
+    @Operation(summary = "获取工具列表", description = "支持按关键词、分类、状态、工具箱筛选；支持按创建时间、借用次数排序；支持组合查询。sortBy可选值: createdAt, borrowCount, name, category")
     public ApiResponse<PageResponse<ToolResponse>> getAllTools(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) ToolStatus status,
             @RequestParam(required = false) Long boxId,
+            @RequestParam(required = false) List<Long> boxIds,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
-        return ApiResponse.success(toolService.getAllTools(keyword, category, status, boxId, page, size, sortBy, sortDir));
+        return ApiResponse.success(toolService.getAllTools(keyword, category, status, boxId, boxIds, page, size, sortBy, sortDir));
     }
 
     @GetMapping("/mine")

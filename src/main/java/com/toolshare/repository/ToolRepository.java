@@ -28,6 +28,17 @@ public interface ToolRepository extends JpaRepository<Tool, Long> {
                       @Param("boxId") Long boxId,
                       Pageable pageable);
 
+    @Query("SELECT t FROM Tool t WHERE " +
+           "(:keyword IS NULL OR :keyword = '' OR t.name LIKE %:keyword% OR t.description LIKE %:keyword%) " +
+           "AND (:category IS NULL OR :category = '' OR t.category = :category) " +
+           "AND (:status IS NULL OR t.status = :status) " +
+           "AND (:boxIds IS NULL OR t.boxId IN :boxIds)")
+    Page<Tool> searchWithMultipleBoxes(@Param("keyword") String keyword,
+                                       @Param("category") String category,
+                                       @Param("status") ToolStatus status,
+                                       @Param("boxIds") List<Long> boxIds,
+                                       Pageable pageable);
+
     long countByStatus(ToolStatus status);
 
     long countByBoxId(Long boxId);
