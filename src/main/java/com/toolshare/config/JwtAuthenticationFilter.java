@@ -1,5 +1,6 @@
 package com.toolshare.config;
 
+import com.toolshare.entity.Role;
 import com.toolshare.entity.User;
 import com.toolshare.repository.UserRepository;
 import jakarta.servlet.FilterChain;
@@ -14,7 +15,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -50,11 +52,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Optional<User> userOptional = userRepository.findByUsername(username);
             if (userOptional.isPresent()) {
                 User user = userOptional.get();
+                if (user.getIsEnabled() != null && !user.getIsEnabled()) {
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"success\":false,\"message\":\"账号已被禁用\"}");
+                    return;
+                }
                 if (jwtUtil.validateToken(jwt, user.getUsername())) {
+                    List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+                    authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+                    if (user.getRole() == Role.ADMIN) {
+                        authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+                    }
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             user,
                             null,
-                            Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+                            authorities
                     );
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);

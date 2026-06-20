@@ -99,6 +99,9 @@ public class BorrowRequestService {
                 .orElseThrow(() -> new ResourceNotFoundException("工具不存在"));
 
         if (tool.getStatus() != ToolStatus.AVAILABLE) {
+            if (tool.getStatus() == ToolStatus.DISABLED) {
+                throw new BadRequestException("该工具已被管理员禁用，不可借用");
+            }
             throw new BadRequestException("该工具当前不可借用");
         }
 

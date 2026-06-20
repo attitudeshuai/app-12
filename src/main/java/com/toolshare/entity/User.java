@@ -28,6 +28,13 @@ public class User {
     @Column(length = 500)
     private String avatar;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private Role role = Role.USER;
+
+    @Column(name = "is_enabled", nullable = false)
+    private Boolean isEnabled = true;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

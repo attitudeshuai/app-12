@@ -103,6 +103,8 @@ public class AuthService {
                 user.getUsername(),
                 user.getEmail(),
                 user.getAvatar(),
+                user.getRole(),
+                user.getIsEnabled(),
                 user.getCreatedAt(),
                 user.getUpdatedAt()
         );

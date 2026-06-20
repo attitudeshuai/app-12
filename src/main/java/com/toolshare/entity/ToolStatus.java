@@ -4,5 +4,6 @@ public enum ToolStatus {
     AVAILABLE,
     BORROWED,
     MAINTENANCE,
-    BROKEN
+    BROKEN,
+    DISABLED
 }

@@ -1,5 +1,6 @@
 package com.toolshare.util;
 
+import com.toolshare.entity.Role;
 import com.toolshare.entity.User;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,5 +23,10 @@ public class SecurityUtil {
     public static String getCurrentUsername() {
         User user = getCurrentUser();
         return user != null ? user.getUsername() : null;
+    }
+
+    public static boolean isAdmin() {
+        User user = getCurrentUser();
+        return user != null && user.getRole() == Role.ADMIN;
     }
 }

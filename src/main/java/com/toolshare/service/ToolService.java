@@ -195,6 +195,26 @@ public class ToolService {
         return responses;
     }
 
+    public static ToolResponse toToolResponse(Tool tool, UserRepository userRepository) {
+        ToolResponse response = new ToolResponse();
+        response.setId(tool.getId());
+        response.setBoxId(tool.getBoxId());
+        response.setName(tool.getName());
+        response.setCategory(tool.getCategory());
+        response.setStatus(tool.getStatus());
+        response.setDescription(tool.getDescription());
+        response.setImage(tool.getImage());
+        response.setPurchaseDate(tool.getPurchaseDate());
+        response.setOwnerId(tool.getOwnerId());
+        response.setCreatedAt(tool.getCreatedAt());
+
+        userRepository.findById(tool.getOwnerId()).ifPresent(user ->
+                response.setOwnerName(user.getUsername())
+        );
+
+        return response;
+    }
+
     private ToolResponse toResponse(Tool tool) {
         ToolResponse response = new ToolResponse();
         response.setId(tool.getId());

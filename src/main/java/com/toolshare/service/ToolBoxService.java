@@ -139,6 +139,24 @@ public class ToolBoxService {
         toolBoxRepository.delete(toolBox);
     }
 
+    public static ToolBoxResponse toToolBoxResponse(ToolBox toolBox, UserRepository userRepository) {
+        ToolBoxResponse response = new ToolBoxResponse();
+        response.setId(toolBox.getId());
+        response.setName(toolBox.getName());
+        response.setLocation(toolBox.getLocation());
+        response.setManagerId(toolBox.getManagerId());
+        response.setCode(toolBox.getCode());
+        response.setImage(toolBox.getImage());
+        response.setIsActive(toolBox.getIsActive());
+        response.setCreatedAt(toolBox.getCreatedAt());
+
+        userRepository.findById(toolBox.getManagerId()).ifPresent(user ->
+                response.setManagerName(user.getUsername())
+        );
+
+        return response;
+    }
+
     private ToolBoxResponse toResponse(ToolBox toolBox) {
         ToolBoxResponse response = new ToolBoxResponse();
         response.setId(toolBox.getId());

@@ -73,6 +73,9 @@ public class SeedDataInitializer implements CommandLineRunner {
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setAvatar("https://api.dicebear.com/7.x/avataaars/svg?seed=" + username);
+        if ("admin".equals(username)) {
+            user.setRole(com.toolshare.entity.Role.ADMIN);
+        }
         return userRepository.save(user);
     }
 
