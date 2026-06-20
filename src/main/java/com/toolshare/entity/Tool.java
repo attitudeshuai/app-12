@@ -29,6 +29,10 @@ public class Tool {
     @Column(nullable = false, length = 20)
     private ToolStatus status = ToolStatus.AVAILABLE;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_before_box_deactivated", length = 20)
+    private ToolStatus statusBeforeBoxDeactivated;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 

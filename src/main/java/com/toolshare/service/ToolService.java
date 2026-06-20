@@ -202,8 +202,7 @@ public class ToolService {
         return responses;
     }
 
-    public static ToolResponse toToolResponse(Tool tool, ToolBoxRepository toolBoxRepository,
-                                               UserRepository userRepository, ToolReviewService toolReviewService) {
+    private ToolResponse toResponse(Tool tool) {
         ToolResponse response = new ToolResponse();
         response.setId(tool.getId());
         response.setBoxId(tool.getBoxId());
@@ -224,16 +223,44 @@ public class ToolService {
                 response.setOwnerName(user.getUsername())
         );
 
-        if (toolReviewService != null) {
-            response.setAverageRating(toolReviewService.getAverageRatingByToolId(tool.getId()));
-            response.setReviewCount(toolReviewService.getReviewCountByToolId(tool.getId()));
-        }
+        response.setAverageRating(toolReviewService.getAverageRatingByToolId(tool.getId()));
+        response.setReviewCount(toolReviewService.getReviewCountByToolId(tool.getId()));
 
         return response;
     }
 
-    private ToolResponse toResponse(Tool tool) {
-        return toToolResponse(tool, toolBoxRepository, userRepository, toolReviewService);
+    @Transactional
+    public ToolResponse adminDisableTool(Long id) {
+        Tool tool = toolRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("工具不存在"));
+
+        if (tool.getStatus() == ToolStatus.BORROWED) {
+            throw new BadRequestException("工具正在借用中，无法禁用");
+        }
+
+        tool.setStatus(ToolStatus.DISABLED);
+        Tool savedTool = toolRepository.save(tool);
+        return toResponse(savedTool);
+    }
+
+    @Transactional
+    public ToolResponse adminEnableTool(Long id) {
+        Tool tool = toolRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("工具不存在"));
+
+        if (tool.getStatus() != ToolStatus.DISABLED) {
+            throw new BadRequestException("工具未被禁用");
+        }
+
+        ToolBox toolBox = toolBoxRepository.findById(tool.getBoxId()).orElse(null);
+        if (toolBox != null && !Boolean.TRUE.equals(toolBox.getIsActive())) {
+            tool.setStatus(ToolStatus.MAINTENANCE);
+        } else {
+            tool.setStatus(ToolStatus.AVAILABLE);
+        }
+
+        Tool savedTool = toolRepository.save(tool);
+        return toResponse(savedTool);
     }
 
     public boolean isToolOwner(Long toolId, Long userId) {

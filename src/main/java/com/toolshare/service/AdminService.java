@@ -5,10 +5,13 @@ import com.toolshare.dto.auth.UserResponse;
 import com.toolshare.dto.borrowrequest.BorrowRequestResponse;
 import com.toolshare.dto.tool.ToolResponse;
 import com.toolshare.dto.toolbox.ToolBoxResponse;
-import com.toolshare.entity.*;
+import com.toolshare.entity.BorrowRequestStatus;
+import com.toolshare.entity.Role;
+import com.toolshare.entity.ToolStatus;
+import com.toolshare.entity.User;
 import com.toolshare.exception.BadRequestException;
 import com.toolshare.exception.ResourceNotFoundException;
-import com.toolshare.repository.*;
+import com.toolshare.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -22,30 +25,18 @@ import java.time.LocalDate;
 public class AdminService {
 
     private final UserRepository userRepository;
-    private final ToolRepository toolRepository;
-    private final ToolBoxRepository toolBoxRepository;
-    private final BorrowRequestRepository borrowRequestRepository;
     private final BorrowRequestService borrowRequestService;
     private final ToolService toolService;
     private final ToolBoxService toolBoxService;
-    private final ToolReviewService toolReviewService;
 
     public AdminService(UserRepository userRepository,
-                       ToolRepository toolRepository,
-                       ToolBoxRepository toolBoxRepository,
-                       BorrowRequestRepository borrowRequestRepository,
                        BorrowRequestService borrowRequestService,
                        ToolService toolService,
-                       ToolBoxService toolBoxService,
-                       ToolReviewService toolReviewService) {
+                       ToolBoxService toolBoxService) {
         this.userRepository = userRepository;
-        this.toolRepository = toolRepository;
-        this.toolBoxRepository = toolBoxRepository;
-        this.borrowRequestRepository = borrowRequestRepository;
         this.borrowRequestService = borrowRequestService;
         this.toolService = toolService;
         this.toolBoxService = toolBoxService;
-        this.toolReviewService = toolReviewService;
     }
 
     public PageResponse<UserResponse> getAllUsers(String keyword, Role role, Boolean isEnabled,
@@ -100,36 +91,12 @@ public class AdminService {
 
     @Transactional
     public ToolResponse disableTool(Long id) {
-        Tool tool = toolRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("工具不存在"));
-
-        if (tool.getStatus() == ToolStatus.BORROWED) {
-            throw new BadRequestException("工具正在借用中，无法禁用");
-        }
-
-        tool.setStatus(ToolStatus.DISABLED);
-        Tool savedTool = toolRepository.save(tool);
-        return ToolService.toToolResponse(savedTool, toolBoxRepository, userRepository, toolReviewService);
+        return toolService.adminDisableTool(id);
     }
 
     @Transactional
     public ToolResponse enableTool(Long id) {
-        Tool tool = toolRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("工具不存在"));
-
-        if (tool.getStatus() != ToolStatus.DISABLED) {
-            throw new BadRequestException("工具未被禁用");
-        }
-
-        ToolBox toolBox = toolBoxRepository.findById(tool.getBoxId()).orElse(null);
-        if (toolBox != null && !Boolean.TRUE.equals(toolBox.getIsActive())) {
-            tool.setStatus(ToolStatus.MAINTENANCE);
-        } else {
-            tool.setStatus(ToolStatus.AVAILABLE);
-        }
-
-        Tool savedTool = toolRepository.save(tool);
-        return ToolService.toToolResponse(savedTool, toolBoxRepository, userRepository, toolReviewService);
+        return toolService.adminEnableTool(id);
     }
 
     public PageResponse<ToolBoxResponse> getAllToolBoxes(String keyword, Boolean isActive,

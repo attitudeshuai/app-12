@@ -168,6 +168,7 @@ public class ToolBoxService {
             List<Tool> tools = toolRepository.findByBoxId(toolBox.getId());
             for (Tool tool : tools) {
                 if (tool.getStatus() == ToolStatus.AVAILABLE) {
+                    tool.setStatusBeforeBoxDeactivated(tool.getStatus());
                     tool.setStatus(ToolStatus.MAINTENANCE);
                     toolRepository.save(tool);
                 }
@@ -175,8 +176,10 @@ public class ToolBoxService {
         } else if (!wasActive && willBeActive) {
             List<Tool> tools = toolRepository.findByBoxId(toolBox.getId());
             for (Tool tool : tools) {
-                if (tool.getStatus() == ToolStatus.MAINTENANCE) {
-                    tool.setStatus(ToolStatus.AVAILABLE);
+                if (tool.getStatus() == ToolStatus.MAINTENANCE
+                        && tool.getStatusBeforeBoxDeactivated() == ToolStatus.AVAILABLE) {
+                    tool.setStatus(tool.getStatusBeforeBoxDeactivated());
+                    tool.setStatusBeforeBoxDeactivated(null);
                     toolRepository.save(tool);
                 }
             }
